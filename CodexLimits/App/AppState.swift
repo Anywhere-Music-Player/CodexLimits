@@ -20,6 +20,7 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
 
     private let fetcher = CodexUsageFetcher()
     private var refreshTask: Task<Void, Never>?
+    private var snapshotSyncTask: Task<Void, Never>?
     private var pageIsReady = false
 
     override init() {
@@ -42,6 +43,7 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
             webView.load(URLRequest(url: url))
         }
         startAutoRefresh()
+        startSnapshotSync()
         WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
     }
 
@@ -105,6 +107,23 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
                 await self?.refresh()
             }
         }
+    }
+
+    private func startSnapshotSync() {
+        snapshotSyncTask?.cancel()
+        snapshotSyncTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard !Task.isCancelled else { return }
+                self?.syncSnapshotFromSharedStore()
+            }
+        }
+    }
+
+    private func syncSnapshotFromSharedStore() {
+        guard let storedSnapshot = UsageSnapshotStore.load() else { return }
+        guard snapshot == nil || storedSnapshot.fetchedAt > snapshot!.fetchedAt else { return }
+        snapshot = storedSnapshot
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

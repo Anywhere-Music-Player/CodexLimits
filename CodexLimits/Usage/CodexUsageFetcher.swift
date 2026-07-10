@@ -116,9 +116,10 @@ struct CodexUsageFetcher {
 
     private static let sessionScript = """
         async function fetchSession() {
-          let response = await fetch("/api/auth/session", { credentials: "include" });
+          const options = { credentials: "include", cache: "no-store" };
+          let response = await fetch("/api/auth/session", options);
           if (response.ok) return await response.json();
-          response = await fetch("/backend-api/auth/session", { credentials: "include" });
+          response = await fetch("/backend-api/auth/session", options);
           if (response.ok) return await response.json();
           return null;
         }
@@ -131,12 +132,17 @@ struct CodexUsageFetcher {
         const session = await fetchSession();
         const accessToken = session && (session.accessToken || session.access_token);
         if (!accessToken) throw new Error("Missing access token");
-        const response = await fetch("https://chatgpt.com/backend-api/wham/usage", {
+        const usageURL = new URL("https://chatgpt.com/backend-api/wham/usage");
+        usageURL.searchParams.set("_codex_limits", String(Date.now()));
+        const response = await fetch(usageURL.toString(), {
           method: "GET",
           credentials: "include",
+          cache: "no-store",
           headers: {
             "Accept": "application/json",
-            "Authorization": "Bearer " + accessToken
+            "Authorization": "Bearer " + accessToken,
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
           }
         });
         if (!response.ok) throw new Error("HTTP " + response.status);
