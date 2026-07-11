@@ -1,4 +1,18 @@
+import AppIntents
 import SwiftUI
+import WidgetKit
+
+struct ReloadCodexLimitsWidgetIntent: AppIntent {
+    static var title: LocalizedStringResource = "Refresh Codex Limits"
+    static var description = IntentDescription(
+        "Reloads the widget using the latest usage snapshot."
+    )
+
+    func perform() async throws -> some IntentResult {
+        WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+        return .result()
+    }
+}
 
 enum CodexWidgetFamily {
     case small
@@ -79,6 +93,16 @@ struct CodexWidgetContentView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+
+            Button(intent: ReloadCodexLimitsWidgetIntent()) {
+                Image(systemName: "arrow.clockwise")
+                    .font(.caption2.weight(.semibold))
+                    .frame(width: 18, height: 18)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Refresh Widget")
         }
     }
 

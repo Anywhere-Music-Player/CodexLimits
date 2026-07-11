@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 import WebKit
@@ -37,6 +38,12 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
         self.menuBarTextSize = MenuBarSettings.textSize
         super.init()
 
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleSystemWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
         webView.navigationDelegate = self
         webView.uiDelegate = self
         if let url = URL(string: "https://chatgpt.com/codex/cloud/settings/analytics#usage") {
@@ -124,6 +131,17 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
         guard let storedSnapshot = UsageSnapshotStore.load() else { return }
         guard snapshot == nil || storedSnapshot.fetchedAt > snapshot!.fetchedAt else { return }
         snapshot = storedSnapshot
+    }
+
+    @objc private func handleSystemWake() {
+        startAutoRefresh()
+        WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+
+        Task { [weak self] in
+            await self?.refresh()
+            try? await Task.sleep(for: .seconds(2))
+            WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+        }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
