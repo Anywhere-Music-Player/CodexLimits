@@ -7,6 +7,9 @@
     "Codex Limits" : {
 
     },
+    "Fetches the latest Codex usage and reloads the widget." : {
+
+    },
     "Not fetched" : {
 
     },
@@ -19,7 +22,7 @@
     "Refresh Widget" : {
 
     },
-    "Reloads the widget using the latest usage snapshot." : {
+    "Refreshing" : {
 
     },
     "widget.5hourLimit" : {

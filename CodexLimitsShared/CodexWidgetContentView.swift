@@ -5,10 +5,12 @@ import WidgetKit
 struct ReloadCodexLimitsWidgetIntent: AppIntent {
     static var title: LocalizedStringResource = "Refresh Codex Limits"
     static var description = IntentDescription(
-        "Reloads the widget using the latest usage snapshot."
+        "Fetches the latest Codex usage and reloads the widget."
     )
+    static var openAppWhenRun = true
 
     func perform() async throws -> some IntentResult {
+        WidgetRefreshState.request()
         WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
         return .result()
     }
@@ -88,21 +90,37 @@ struct CodexWidgetContentView: View {
             Text("Codex")
                 .font(.headline.bold())
             Spacer()
-            if let fetchedAt = snapshot?.fetchedAt {
-                Text(fetchedAt.formatted(date: .omitted, time: .shortened))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
 
-            Button(intent: ReloadCodexLimitsWidgetIntent()) {
-                Image(systemName: "arrow.clockwise")
-                    .font(.caption2.weight(.semibold))
+            if WidgetRefreshState.isRefreshing {
+                if let fetchedAt = snapshot?.fetchedAt {
+                    Text(fetchedAt.formatted(date: .omitted, time: .shortened))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                ProgressView()
+                    .controlSize(.mini)
                     .frame(width: 18, height: 18)
+                    .accessibilityLabel("Refreshing")
+            } else {
+                Button(intent: ReloadCodexLimitsWidgetIntent()) {
+                    HStack(spacing: 8) {
+                        if let fetchedAt = snapshot?.fetchedAt {
+                            Text(fetchedAt.formatted(date: .omitted, time: .shortened))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption2.weight(.semibold))
+                            .frame(width: 18, height: 18)
+                    }
+                    .padding(12)
                     .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .padding(-12)
+                .accessibilityLabel("Refresh Widget")
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .accessibilityLabel("Refresh Widget")
         }
     }
 

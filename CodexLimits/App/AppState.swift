@@ -63,7 +63,10 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
         }
 
         isRefreshing = true
-        defer { isRefreshing = false }
+        defer {
+            isRefreshing = false
+            finishWidgetRefreshIfNeeded()
+        }
 
         let hasValidSession = await fetcher.hasValidSession(using: webView)
         isLoggedIn = hasValidSession
@@ -122,6 +125,9 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 guard !Task.isCancelled else { return }
+                if WidgetRefreshState.isRequested {
+                    await self?.refresh()
+                }
                 self?.syncSnapshotFromSharedStore()
             }
         }
@@ -131,6 +137,16 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
         guard let storedSnapshot = UsageSnapshotStore.load() else { return }
         guard snapshot == nil || storedSnapshot.fetchedAt > snapshot!.fetchedAt else { return }
         snapshot = storedSnapshot
+    }
+
+    private func finishWidgetRefreshIfNeeded() {
+        guard WidgetRefreshState.isRequested else { return }
+        WidgetRefreshState.finish()
+        WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+        Task {
+            try? await Task.sleep(for: .seconds(1))
+            WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+        }
     }
 
     @objc private func handleSystemWake() {
