@@ -34,11 +34,6 @@ private struct CodexUsageResponse: Codable {
               let limitSeconds = source.limit_window_seconds else {
             return nil
         }
-        if usedPercent == 0,
-           let resetAfterSeconds = source.reset_after_seconds,
-           abs(limitSeconds - resetAfterSeconds) <= 0.001 {
-            return nil
-        }
         return UsageWindow(
             kind: kind,
             usedPercent: usedPercent,
