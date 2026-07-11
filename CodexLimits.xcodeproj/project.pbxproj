@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 100;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -25,14 +25,12 @@
 /* Begin PBXCopyFilesBuildPhase section */
 		42D45BD12EF64A5100A51EA8 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 13;
+			dstSubfolder = PlugIns;
 			files = (
 				42D45BCC2EF64A5100A51EA8 /* CodexLimitsWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -87,19 +85,15 @@
 /* Begin PBXFrameworksBuildPhase section */
 		42D45B872EF649FE00A51EA8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		42D45BB52EF64A5000A51EA8 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 				42D45BBD2EF64A5000A51EA8 /* SwiftUI.framework in Frameworks */,
 				42D45BBB2EF64A5000A51EA8 /* WidgetKit.framework in Frameworks */,
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
@@ -155,8 +149,6 @@
 				42D45B8C2EF649FE00A51EA8 /* CodexLimits */,
 			);
 			name = CodexLimits;
-			packageProductDependencies = (
-			);
 			productName = CodexLimits;
 			productReference = 42D45B8A2EF649FE00A51EA8 /* CodexLimits.app */;
 			productType = "com.apple.product-type.application";
@@ -171,15 +163,11 @@
 			);
 			buildRules = (
 			);
-			dependencies = (
-			);
 			fileSystemSynchronizedGroups = (
 				01349414347243A598E67AD9 /* CodexLimitsShared */,
 				42D45BBE2EF64A5000A51EA8 /* CodexLimitsWidget */,
 			);
 			name = CodexLimitsWidgetExtension;
-			packageProductDependencies = (
-			);
 			productName = CodexLimitsWidgetExtension;
 			productReference = 42D45BB82EF64A5000A51EA8 /* CodexLimitsWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
@@ -226,7 +214,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 			);
-			preferredProjectObjectVersion = 77;
+			preferredProjectObjectVersion = 100;
 			productRefGroup = 42D45B8B2EF649FE00A51EA8 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -240,34 +228,26 @@
 /* Begin PBXResourcesBuildPhase section */
 		42D45B882EF649FE00A51EA8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		42D45BB62EF64A5000A51EA8 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		42D45B862EF649FE00A51EA8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 		42D45BB42EF64A5000A51EA8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
 			files = (
 			);
-			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
@@ -280,7 +260,7 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		42D45BA92EF649FF00A51EA8 /* Debug */ = {
+		42D45BA92EF649FF00A51EA8 /* Debug configuration for PBXProject "CodexLimits" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -348,7 +328,7 @@
 			};
 			name = Debug;
 		};
-		42D45BAA2EF649FF00A51EA8 /* Release */ = {
+		42D45BAA2EF649FF00A51EA8 /* Release configuration for PBXProject "CodexLimits" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -408,7 +388,7 @@
 			};
 			name = Release;
 		};
-		42D45BAC2EF649FF00A51EA8 /* Debug */ = {
+		42D45BAC2EF649FF00A51EA8 /* Debug configuration for PBXNativeTarget "CodexLimits" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "codex-limits";
@@ -419,7 +399,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = L3UA46DS39;
 				ENABLE_APP_SANDBOX = YES;
@@ -437,7 +417,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 26.0;
+				MARKETING_VERSION = 26.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.buildsucceeded.codex-limits";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -451,7 +431,7 @@
 			};
 			name = Debug;
 		};
-		42D45BAD2EF649FF00A51EA8 /* Release */ = {
+		42D45BAD2EF649FF00A51EA8 /* Release configuration for PBXNativeTarget "CodexLimits" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "codex-limits";
@@ -461,7 +441,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = L3UA46DS39;
 				ENABLE_APP_SANDBOX = YES;
@@ -479,7 +459,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 26.0;
+				MARKETING_VERSION = 26.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.buildsucceeded.codex-limits";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -493,7 +473,7 @@
 			};
 			name = Release;
 		};
-		42D45BCF2EF64A5100A51EA8 /* Debug */ = {
+		42D45BCF2EF64A5100A51EA8 /* Debug configuration for PBXNativeTarget "CodexLimitsWidgetExtension" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -501,7 +481,7 @@
 				CODE_SIGN_ENTITLEMENTS = CodexLimitsWidget/CodexLimitsWidget.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = L3UA46DS39;
 				ENABLE_APP_SANDBOX = YES;
@@ -516,7 +496,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 26.0;
+				MARKETING_VERSION = 26.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.buildsucceeded.codex-limits.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -530,7 +510,7 @@
 			};
 			name = Debug;
 		};
-		42D45BD02EF64A5100A51EA8 /* Release */ = {
+		42D45BD02EF64A5100A51EA8 /* Release configuration for PBXNativeTarget "CodexLimitsWidgetExtension" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -538,7 +518,7 @@
 				CODE_SIGN_ENTITLEMENTS = CodexLimitsWidget/CodexLimitsWidget.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 26;
+				CURRENT_PROJECT_VERSION = 1;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_TEAM = L3UA46DS39;
 				ENABLE_APP_SANDBOX = YES;
@@ -553,7 +533,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 26.0;
+				MARKETING_VERSION = 26.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.buildsucceeded.codex-limits.widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -573,28 +553,25 @@
 		42D45B852EF649FD00A51EA8 /* Build configuration list for PBXProject "CodexLimits" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				42D45BA92EF649FF00A51EA8 /* Debug */,
-				42D45BAA2EF649FF00A51EA8 /* Release */,
+				42D45BA92EF649FF00A51EA8 /* Debug configuration for PBXProject "CodexLimits" */,
+				42D45BAA2EF649FF00A51EA8 /* Release configuration for PBXProject "CodexLimits" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		42D45BAB2EF649FF00A51EA8 /* Build configuration list for PBXNativeTarget "CodexLimits" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				42D45BAC2EF649FF00A51EA8 /* Debug */,
-				42D45BAD2EF649FF00A51EA8 /* Release */,
+				42D45BAC2EF649FF00A51EA8 /* Debug configuration for PBXNativeTarget "CodexLimits" */,
+				42D45BAD2EF649FF00A51EA8 /* Release configuration for PBXNativeTarget "CodexLimits" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 		42D45BCE2EF64A5100A51EA8 /* Build configuration list for PBXNativeTarget "CodexLimitsWidgetExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				42D45BCF2EF64A5100A51EA8 /* Debug */,
-				42D45BD02EF64A5100A51EA8 /* Release */,
+				42D45BCF2EF64A5100A51EA8 /* Debug configuration for PBXNativeTarget "CodexLimitsWidgetExtension" */,
+				42D45BD02EF64A5100A51EA8 /* Release configuration for PBXNativeTarget "CodexLimitsWidgetExtension" */,
 			);
-			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */

@@ -1106,6 +1106,12 @@
     "Open the browser only when you need to sign in" : {
 
     },
+    "Refresh Codex Limits" : {
+
+    },
+    "Refresh Widget" : {
+
+    },
     "refreshInterval.label" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1283,6 +1289,9 @@
           }
         }
       }
+    },
+    "Reloads the widget using the latest usage snapshot." : {
+
     },
     "Show app in menu bar" : {
 

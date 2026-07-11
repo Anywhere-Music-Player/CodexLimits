@@ -13,6 +13,15 @@
     "Open CodexLimits to sign in" : {
 
     },
+    "Refresh Codex Limits" : {
+
+    },
+    "Refresh Widget" : {
+
+    },
+    "Reloads the widget using the latest usage snapshot." : {
+
+    },
     "widget.5hourLimit" : {
       "extractionState" : "manual",
       "localizations" : {

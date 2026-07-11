@@ -65,7 +65,6 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "42D45BB72EF64A5000A51EA8"
             BuildableName = "CodexLimitsWidgetExtension.appex"
-            BlueprintName = "CodexLimitsWidgetExtension"
             ReferencedContainer = "container:CodexLimits.xcodeproj">
          </BuildableReference>
       </RemoteRunnable>
