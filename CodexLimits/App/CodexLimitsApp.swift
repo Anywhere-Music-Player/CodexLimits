@@ -20,9 +20,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         _ sender: NSApplication,
         hasVisibleWindows flag: Bool
     ) -> Bool {
-        if WidgetRefreshState.shouldSuppressAppReopen {
-            return false
-        }
         SettingsWindowController.shared.show()
         return true
     }

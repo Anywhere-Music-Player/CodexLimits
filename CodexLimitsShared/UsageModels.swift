@@ -107,11 +107,6 @@ enum WidgetRefreshState {
         return Date().timeIntervalSince1970 < feedbackUntil
     }
 
-    static var shouldSuppressAppReopen: Bool {
-        guard let requestedAt else { return false }
-        return Date().timeIntervalSince(requestedAt) < 10
-    }
-
     static func request() {
         guard let defaults = AppGroupDefaults.shared else { return }
         defaults.set(Date().timeIntervalSince1970, forKey: requestedAtKey)

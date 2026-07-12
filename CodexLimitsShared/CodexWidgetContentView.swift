@@ -7,7 +7,6 @@ struct ReloadCodexLimitsWidgetIntent: AppIntent {
     static var description = IntentDescription(
         "Fetches the latest Codex usage and reloads the widget."
     )
-    static var openAppWhenRun = true
 
     func perform() async throws -> some IntentResult {
         WidgetRefreshState.request()
@@ -91,36 +90,35 @@ struct CodexWidgetContentView: View {
                 .font(.headline.bold())
             Spacer()
 
-            if WidgetRefreshState.isRefreshing {
-                if let fetchedAt = snapshot?.fetchedAt {
-                    Text(fetchedAt.formatted(date: .omitted, time: .shortened))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                ProgressView()
-                    .controlSize(.mini)
-                    .frame(width: 18, height: 18)
-                    .accessibilityLabel("Refreshing")
-            } else {
-                Button(intent: ReloadCodexLimitsWidgetIntent()) {
-                    HStack(spacing: 8) {
-                        if let fetchedAt = snapshot?.fetchedAt {
-                            Text(fetchedAt.formatted(date: .omitted, time: .shortened))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
+            Button(intent: ReloadCodexLimitsWidgetIntent()) {
+                HStack(spacing: 8) {
+                    if let fetchedAt = snapshot?.fetchedAt {
+                        Text(fetchedAt.formatted(date: .omitted, time: .shortened))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    ZStack {
                         Image(systemName: "arrow.clockwise")
                             .font(.caption2.weight(.semibold))
-                            .frame(width: 18, height: 18)
+                            .opacity(WidgetRefreshState.isRefreshing ? 0 : 1)
+
+                        if WidgetRefreshState.isRefreshing {
+                            ProgressView()
+                                .controlSize(.mini)
+                                .scaleEffect(0.65)
+                                .accessibilityLabel("Refreshing")
+                        }
                     }
-                    .padding(12)
-                    .contentShape(Rectangle())
+                    .frame(width: 18, height: 18)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .padding(-12)
-                .accessibilityLabel("Refresh Widget")
+                .padding(12)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .padding(-12)
+            .accessibilityLabel("Refresh Widget")
         }
     }
 

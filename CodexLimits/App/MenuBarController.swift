@@ -68,12 +68,14 @@ final class MenuBarController: NSObject {
     private func configureMenu() {
         let menu = NSMenu()
         menu.addItem(makeItem(
-            String(localized: "menu.openSettings"),
-            action: #selector(openSettings)
+            String(localized: "content.refreshNow"),
+            systemImage: "arrow.clockwise",
+            action: #selector(refreshNow)
         ))
         menu.addItem(makeItem(
-            String(localized: "content.refreshNow"),
-            action: #selector(refreshNow)
+            String(localized: "menu.openSettings"),
+            systemImage: "gearshape",
+            action: #selector(openSettings)
         ))
         menu.addItem(.separator())
         menu.addItem(makeItem(
@@ -84,8 +86,19 @@ final class MenuBarController: NSObject {
         statusItem.menu = menu
     }
 
-    private func makeItem(_ title: String, action: Selector) -> NSMenuItem {
-        NSMenuItem(title: title, action: action, keyEquivalent: "")
+    private func makeItem(
+        _ title: String,
+        systemImage: String? = nil,
+        action: Selector
+    ) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        if let systemImage {
+            item.image = NSImage(
+                systemSymbolName: systemImage,
+                accessibilityDescription: title
+            )
+        }
+        return item
     }
 
     private func updateTitle(_ snapshot: UsageSnapshot?) {

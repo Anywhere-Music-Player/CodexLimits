@@ -928,85 +928,85 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodexLimits-Einstellungen..."
+            "value" : "Einstellungen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodexLimits Settings..."
+            "value" : "Settings"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ajustes de CodexLimits..."
+            "value" : "Ajustes"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Paramètres CodexLimits..."
+            "value" : "Paramètres"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Impostazioni di CodexLimits..."
+            "value" : "Impostazioni"
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodexLimits 設定..."
+            "value" : "設定"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodexLimits 설정..."
+            "value" : "설정"
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodexLimits-instellingen..."
+            "value" : "Instellingen"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ustawienia CodexLimits..."
+            "value" : "Ustawienia"
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Configurações do CodexLimits..."
+            "value" : "Configurações"
           }
         },
         "tr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodexLimits Ayarları..."
+            "value" : "Ayarlar"
           }
         },
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Налаштування CodexLimits..."
+            "value" : "Налаштування"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodexLimits 设置..."
+            "value" : "设置"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "CodexLimits 設定..."
+            "value" : "設定"
           }
         }
       }
