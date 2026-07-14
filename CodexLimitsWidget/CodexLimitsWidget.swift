@@ -73,7 +73,9 @@ struct CodexLimitsWidget: Widget {
             provider: CodexLimitsTimelineProvider()
         ) { entry in
             CodexLimitsWidgetView(entry: entry)
-                .containerBackground(.fill.tertiary, for: .widget)
+                .containerBackground(for: .widget) {
+                    Color.clear
+                }
         }
         .configurationDisplayName("Codex Limits")
         .description(String(localized: "widget.description"))

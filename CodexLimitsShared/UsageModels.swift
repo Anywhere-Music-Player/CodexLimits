@@ -88,46 +88,6 @@ enum RefreshIntervalSettings {
     }
 }
 
-enum WidgetRefreshState {
-    private static let requestedKey = "widget_refresh_requested"
-    private static let requestedAtKey = "widget_refresh_requested_at"
-    private static let feedbackUntilKey = "widget_refresh_feedback_until"
-
-    static var isRequested: Bool {
-        AppGroupDefaults.shared?.bool(forKey: requestedKey) ?? false
-    }
-
-    static var isRefreshing: Bool {
-        if isRequested,
-           let requestedAt,
-           Date().timeIntervalSince(requestedAt) < 120 {
-            return true
-        }
-        let feedbackUntil = AppGroupDefaults.shared?.double(forKey: feedbackUntilKey) ?? 0
-        return Date().timeIntervalSince1970 < feedbackUntil
-    }
-
-    static func request() {
-        guard let defaults = AppGroupDefaults.shared else { return }
-        defaults.set(Date().timeIntervalSince1970, forKey: requestedAtKey)
-        defaults.set(true, forKey: requestedKey)
-    }
-
-    static func finish() {
-        guard let defaults = AppGroupDefaults.shared else { return }
-        defaults.set(false, forKey: requestedKey)
-        defaults.set(
-            Date().addingTimeInterval(1).timeIntervalSince1970,
-            forKey: feedbackUntilKey
-        )
-    }
-
-    private static var requestedAt: Date? {
-        let timestamp = AppGroupDefaults.shared?.double(forKey: requestedAtKey) ?? 0
-        return timestamp > 0 ? Date(timeIntervalSince1970: timestamp) : nil
-    }
-}
-
 enum MenuBarTextSize: String, CaseIterable, Identifiable {
     case small
     case medium

@@ -1,23 +1,37 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "" : {
+    "%lldm" : {
 
     },
-    "%@ %@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ %2$@"
-          }
-        }
-      }
+    "•" : {
+
+    },
+    "Authentication required" : {
+
+    },
+    "auto" : {
+
+    },
+    "Back to dashboard" : {
+
+    },
+    "codex" : {
+
     },
     "Codex" : {
 
     },
+    "Codex account" : {
+
+    },
+    "Codex sign in" : {
+
+    },
     "CodexLimits" : {
+
+    },
+    "Complete sign in" : {
 
     },
     "content.5hours" : {
@@ -821,16 +835,10 @@
         }
       }
     },
-    "Fetches the latest Codex usage and reloads the widget." : {
+    "LIMITS" : {
 
     },
-    "Hide Login" : {
-
-    },
-    "Login" : {
-
-    },
-    "Menu Bar" : {
+    "Manage login" : {
 
     },
     "menu.about" : {
@@ -1100,19 +1108,13 @@
         }
       }
     },
-    "Not fetched" : {
+    "No usage data" : {
 
     },
     "Open CodexLimits to sign in" : {
 
     },
-    "Open the browser only when you need to sign in" : {
-
-    },
-    "Refresh Codex Limits" : {
-
-    },
-    "Refresh Widget" : {
+    "Refresh" : {
 
     },
     "Refreshing" : {
@@ -1296,16 +1298,25 @@
         }
       }
     },
-    "Show app in menu bar" : {
+    "RESETS" : {
 
     },
-    "Show Login" : {
+    "resets %@" : {
 
     },
-    "Show remaining percentages" : {
+    "Show app" : {
 
     },
-    "Sign In" : {
+    "Show percentages" : {
+
+    },
+    "Sign in" : {
+
+    },
+    "Sign in to Codex to load the latest limit." : {
+
+    },
+    "Sign in to fetch usage" : {
 
     },
     "Signed in" : {
@@ -1490,6 +1501,12 @@
       }
     },
     "Text size" : {
+
+    },
+    "Update every" : {
+
+    },
+    "UPDATED %@" : {
 
     },
     "usage.updated" : {

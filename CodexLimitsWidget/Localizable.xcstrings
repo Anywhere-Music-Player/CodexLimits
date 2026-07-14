@@ -7,22 +7,22 @@
     "Codex Limits" : {
 
     },
-    "Fetches the latest Codex usage and reloads the widget." : {
+    "LIMITS" : {
 
     },
-    "Not fetched" : {
+    "No usage data" : {
 
     },
     "Open CodexLimits to sign in" : {
 
     },
-    "Refresh Codex Limits" : {
+    "RESETS" : {
 
     },
-    "Refresh Widget" : {
+    "resets %@" : {
 
     },
-    "Refreshing" : {
+    "UPDATED %@" : {
 
     },
     "widget.5hourLimit" : {

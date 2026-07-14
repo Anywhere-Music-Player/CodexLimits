@@ -17,16 +17,26 @@ private struct CodexUsageResponse: Codable {
     let rate_limit: RateLimit?
 
     func makeSnapshot(fetchedAt: Date) -> UsageSnapshot {
-        let primary = makeWindow(kind: .primary, source: rate_limit?.primary_window)
-        let secondary = primary?.isLongerThanWeekly == true
-            ? nil
-            : makeWindow(kind: .secondary, source: rate_limit?.secondary_window)
+        let windows = [
+            rate_limit?.primary_window,
+            rate_limit?.secondary_window
+        ].compactMap { $0 }
+        let primary = makeWindow(
+            kind: .primary,
+            source: windows.first { ($0.limit_window_seconds ?? 0) < Self.longWindowThreshold }
+        )
+        let secondary = makeWindow(
+            kind: .secondary,
+            source: windows.first { ($0.limit_window_seconds ?? 0) >= Self.longWindowThreshold }
+        )
         return UsageSnapshot(
             fetchedAt: fetchedAt,
             primaryWindow: primary,
             secondaryWindow: secondary
         )
     }
+
+    private static let longWindowThreshold: TimeInterval = 24 * 60 * 60
 
     private func makeWindow(kind: UsageWindowKind, source: RateLimit.Window?) -> UsageWindow? {
         guard let source,
