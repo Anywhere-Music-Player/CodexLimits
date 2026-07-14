@@ -7,9 +7,6 @@
     "Codex Limits" : {
 
     },
-    "LIMITS" : {
-
-    },
     "No usage data" : {
 
     },
@@ -19,10 +16,7 @@
     "RESETS" : {
 
     },
-    "resets %@" : {
-
-    },
-    "UPDATED %@" : {
+    "Resets %@" : {
 
     },
     "widget.5hourLimit" : {

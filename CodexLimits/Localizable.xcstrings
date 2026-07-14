@@ -835,9 +835,6 @@
         }
       }
     },
-    "LIMITS" : {
-
-    },
     "Manage login" : {
 
     },
@@ -1301,7 +1298,7 @@
     "RESETS" : {
 
     },
-    "resets %@" : {
+    "Resets %@" : {
 
     },
     "Show app" : {
@@ -1504,9 +1501,6 @@
 
     },
     "Update every" : {
-
-    },
-    "UPDATED %@" : {
 
     },
     "usage.updated" : {
