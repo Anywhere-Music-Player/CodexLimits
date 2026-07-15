@@ -17,6 +17,7 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     @Published private(set) var isMenuBarItemVisible: Bool
     @Published private(set) var showsPercentagesInMenuBar: Bool
     @Published private(set) var menuBarTextSize: MenuBarTextSize
+    @Published private(set) var widgetLayoutStyle: WidgetLayoutStyle
 
     let webView: WKWebView
 
@@ -39,6 +40,7 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
         self.isMenuBarItemVisible = MenuBarSettings.isItemVisible
         self.showsPercentagesInMenuBar = MenuBarSettings.showsPercentages
         self.menuBarTextSize = MenuBarSettings.textSize
+        self.widgetLayoutStyle = WidgetLayoutStyleSettings.current
         super.init()
 
         NSWorkspace.shared.notificationCenter.addObserver(
@@ -102,6 +104,12 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     func updateMenuBarTextSize(_ size: MenuBarTextSize) {
         MenuBarSettings.saveTextSize(size)
         menuBarTextSize = size
+    }
+
+    func updateWidgetLayoutStyle(_ style: WidgetLayoutStyle) {
+        WidgetLayoutStyleSettings.save(style)
+        widgetLayoutStyle = style
+        WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
     }
 
     private func updateLoginState(_ isLoggedIn: Bool) {

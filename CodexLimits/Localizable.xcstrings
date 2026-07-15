@@ -16,6 +16,9 @@
     "Back to dashboard" : {
 
     },
+    "Clean card with a continuous progress bar" : {
+
+    },
     "codex" : {
 
     },
@@ -1322,6 +1325,9 @@
     "Signed in" : {
 
     },
+    "Split reset card with segmented progress" : {
+
+    },
     "status.loadingLogin" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1594,6 +1600,9 @@
           }
         }
       }
+    },
+    "Widget theme" : {
+
     },
     "window.settings.title" : {
       "extractionState" : "manual",

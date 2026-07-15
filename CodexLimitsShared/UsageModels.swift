@@ -8,6 +8,7 @@ enum AppConfiguration {
     static let menuBarItemVisibleKey = "menu_bar_item_visible"
     static let menuBarShowsPercentagesKey = "menu_bar_shows_percentages"
     static let menuBarTextSizeKey = "menu_bar_text_size"
+    static let widgetLayoutStyleKey = "widget_layout_style"
     static let widgetKind = "CodexLimitsWidget"
     static let urlScheme = "codex-limits"
 }
@@ -140,6 +141,38 @@ enum MenuBarSettings {
 
     static func saveTextSize(_ size: MenuBarTextSize) {
         AppGroupDefaults.shared?.set(size.rawValue, forKey: AppConfiguration.menuBarTextSizeKey)
+    }
+}
+
+enum WidgetLayoutStyle: String, CaseIterable, Identifiable {
+    case themeOne
+    case themeTwo
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .themeOne: return "Theme 1"
+        case .themeTwo: return "Theme 2"
+        }
+    }
+}
+
+enum WidgetLayoutStyleSettings {
+    static var current: WidgetLayoutStyle {
+        guard let value = AppGroupDefaults.shared?.string(
+            forKey: AppConfiguration.widgetLayoutStyleKey
+        ) else {
+            return .themeOne
+        }
+        return WidgetLayoutStyle(rawValue: value) ?? .themeOne
+    }
+
+    static func save(_ style: WidgetLayoutStyle) {
+        AppGroupDefaults.shared?.set(
+            style.rawValue,
+            forKey: AppConfiguration.widgetLayoutStyleKey
+        )
     }
 }
 

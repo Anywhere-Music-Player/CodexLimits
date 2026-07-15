@@ -168,6 +168,7 @@ struct SettingsView: View {
                 usageDashboard
                 automationPanel
                 menuBarPanel
+                widgetPanel
                 accountPanel
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -245,23 +246,15 @@ struct SettingsView: View {
 
     private var usageDashboard: some View {
         VStack(spacing: 12) {
-            if let snapshot = state.snapshot,
-               snapshot.primaryWindow != nil || snapshot.secondaryWindow != nil {
-                if let primary = snapshot.primaryWindow {
-                    usageCard(title: "5-hour window", window: primary)
-                }
-                if let secondary = snapshot.secondaryWindow {
-                    usageCard(title: "weekly window", window: secondary)
-                }
-            } else {
-                emptyUsageCard
-            }
+            usageCard(title: "5-hour window", window: state.snapshot?.primaryWindow)
+            usageCard(title: "weekly window", window: state.snapshot?.secondaryWindow)
         }
     }
 
-    private func usageCard(title: String, window: UsageWindow) -> some View {
-        let remainingPercent = window.remainingPercent
-        let metricColor = DashboardTheme.metricColor(for: remainingPercent)
+    private func usageCard(title: String, window: UsageWindow?) -> some View {
+        let remainingPercent = window?.remainingPercent
+        let metricColor = remainingPercent.map(DashboardTheme.metricColor)
+            ?? DashboardTheme.secondaryText
 
         return VStack(alignment: .leading, spacing: 15) {
             HStack(alignment: .bottom, spacing: 16) {
@@ -279,7 +272,7 @@ struct SettingsView: View {
 
                 Spacer()
 
-                if let reset = resetText(for: window) {
+                if let window, let reset = resetText(for: window) {
                     VStack(alignment: .trailing, spacing: 5) {
                         Text("RESETS")
                             .font(.system(size: 9, weight: .bold, design: .monospaced))
@@ -293,7 +286,7 @@ struct SettingsView: View {
                 }
             }
 
-            progressBar(remainingPercent, color: metricColor)
+            progressBar(remainingPercent ?? 0, color: metricColor)
                 .frame(height: 11)
         }
         .dashboardPanel(strong: true)
@@ -406,6 +399,45 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
                 .frame(width: 260)
                 .disabled(!state.isMenuBarItemVisible)
+            }
+        }
+        .dashboardPanel()
+    }
+
+    private var widgetPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            sectionHeader(
+                title: "Widget theme",
+                subtitle: "Choose how limits are arranged on the desktop",
+                symbol: "square.grid.2x2"
+            )
+
+            HStack(spacing: 16) {
+                Text(
+                    state.widgetLayoutStyle == .themeOne
+                        ? "Clean card with a continuous progress bar"
+                        : "Split reset card with segmented progress"
+                )
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(DashboardTheme.secondaryText)
+                .lineLimit(1)
+
+                Spacer(minLength: 12)
+
+                Picker(
+                    "Widget theme",
+                    selection: Binding(
+                        get: { state.widgetLayoutStyle },
+                        set: { state.updateWidgetLayoutStyle($0) }
+                    )
+                ) {
+                    ForEach(WidgetLayoutStyle.allCases) { style in
+                        Text(style.title).tag(style)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.segmented)
+                .frame(width: 210)
             }
         }
         .dashboardPanel()

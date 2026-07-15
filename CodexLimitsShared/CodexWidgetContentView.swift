@@ -106,6 +106,10 @@ struct CodexWidgetContentView: View {
         )
     }
 
+    private var layoutStyle: WidgetLayoutStyle {
+        WidgetLayoutStyleSettings.current
+    }
+
     var body: some View {
         ZStack {
             LinearGradient(
@@ -117,19 +121,196 @@ struct CodexWidgetContentView: View {
             )
 
             Group {
-                switch family {
-                case .small:
-                    smallContent
-                case .medium:
-                    mediumContent
+                if layoutStyle == .themeTwo {
+                    themeTwoContent
+                } else {
+                    switch family {
+                    case .small:
+                        smallContent
+                    case .medium:
+                        mediumContent
+                    }
                 }
             }
         }
         .foregroundStyle(theme.text)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay {
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(theme.border, lineWidth: 1)
+    }
+
+    @ViewBuilder
+    private var themeTwoContent: some View {
+        switch family {
+        case .small:
+            themeTwoSmallContent
+        case .medium:
+            themeTwoMediumContent
+        }
+    }
+
+    private var themeTwoSmallContent: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            header
+
+            VStack(spacing: 0) {
+                themeTwoCompactMeter(
+                    title: "5-Hour Limit",
+                    window: snapshot?.primaryWindow,
+                    segments: 12
+                )
+                Spacer(minLength: 8)
+                themeTwoCompactMeter(
+                    title: "Weekly Limit",
+                    window: snapshot?.secondaryWindow,
+                    segments: 12
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .padding(11)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var themeTwoMediumContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            header
+
+            VStack(spacing: 0) {
+                themeTwoCompactMeter(
+                    title: "5-Hour Limit",
+                    window: snapshot?.primaryWindow,
+                    segments: 20
+                )
+                Spacer(minLength: 8)
+                themeTwoCompactMeter(
+                    title: "Weekly Limit",
+                    window: snapshot?.secondaryWindow,
+                    segments: 20
+                )
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private func themeTwoFeaturedSmall(title: String, window: UsageWindow) -> some View {
+        let remainingPercent = window.remainingPercent
+        let metricColor = theme.metricColor(for: remainingPercent)
+
+        return VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .tracking(0.5)
+                .foregroundStyle(theme.secondaryText)
+                .lineLimit(1)
+
+            Text(UsagePercentFormatter.format(remainingPercent))
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(metricColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .widgetAccentable()
+
+            if let reset = resetText(for: window) {
+                Label("Resets \(reset)", systemImage: "clock")
+                    .font(.system(size: 7, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+
+            segmentedProgress(remainingPercent, color: metricColor, segments: 12)
+                .frame(height: 7)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private func themeTwoFeaturedMedium(title: String, window: UsageWindow) -> some View {
+        let remainingPercent = window.remainingPercent
+        let metricColor = theme.metricColor(for: remainingPercent)
+
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 14) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .tracking(0.8)
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(1)
+
+                    Text(UsagePercentFormatter.format(remainingPercent))
+                        .font(.system(size: 42, weight: .heavy, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(metricColor)
+                        .widgetAccentable()
+                }
+
+                Spacer(minLength: 8)
+
+                if let reset = resetText(for: window) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("RESETS", systemImage: "clock")
+                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .tracking(0.7)
+                            .foregroundStyle(metricColor)
+
+                        Text(reset)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                    }
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 9)
+                    .frame(minWidth: 142, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(colorScheme == .dark ? theme.panelTop : Color.white)
+                    )
+                }
+            }
+
+            segmentedProgress(remainingPercent, color: metricColor, segments: 20)
+                .frame(height: 9)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+    }
+
+    private func themeTwoCompactMeter(
+        title: String,
+        window: UsageWindow?,
+        segments: Int
+    ) -> some View {
+        let remainingPercent = window?.remainingPercent
+        let metricColor = remainingPercent.map(theme.metricColor) ?? theme.secondaryText
+
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(title)
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1)
+
+                Spacer(minLength: 4)
+
+                Text(UsagePercentFormatter.format(remainingPercent))
+                    .font(.system(size: family == .small ? 19 : 23, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(metricColor)
+                    .widgetAccentable()
+            }
+
+            if let window, let reset = resetText(for: window) {
+                Text("Resets \(reset)")
+                    .font(.system(size: 7, weight: .semibold, design: .rounded))
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+
+            segmentedProgress(remainingPercent ?? 0, color: metricColor, segments: segments)
+                .frame(height: family == .small ? 5 : 6)
         }
     }
 
@@ -137,23 +318,12 @@ struct CodexWidgetContentView: View {
         VStack(alignment: .leading, spacing: 7) {
             header
 
-            if let primary = snapshot?.primaryWindow,
-               let secondary = snapshot?.secondaryWindow {
-                panel(padding: 7) {
-                    VStack(spacing: 6) {
-                        compactMeter(title: "5-Hour Limit", window: primary)
-                        Rectangle()
-                            .fill(theme.border)
-                            .frame(height: 1)
-                        compactMeter(title: "Weekly Limit", window: secondary)
-                    }
+            panel(padding: 0, fillsHeight: true) {
+                VStack(spacing: 0) {
+                    compactMeter(title: "5-Hour Limit", window: snapshot?.primaryWindow)
+                    Spacer(minLength: 8)
+                    compactMeter(title: "Weekly Limit", window: snapshot?.secondaryWindow)
                 }
-            } else if let primary = snapshot?.primaryWindow {
-                featuredSmall(title: "5-Hour Limit", window: primary)
-            } else if let secondary = snapshot?.secondaryWindow {
-                featuredSmall(title: "Weekly Limit", window: secondary)
-            } else {
-                noDataView
             }
         }
         .padding(11)
@@ -164,23 +334,12 @@ struct CodexWidgetContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             header
 
-            if let primary = snapshot?.primaryWindow,
-               let secondary = snapshot?.secondaryWindow {
-                panel(padding: 8) {
-                    VStack(spacing: 6) {
-                        wideMeter(title: "5-Hour Limit", window: primary)
-                        Rectangle()
-                            .fill(theme.border)
-                            .frame(height: 1)
-                        wideMeter(title: "Weekly Limit", window: secondary)
-                    }
+            panel(padding: 0, fillsHeight: true) {
+                VStack(spacing: 0) {
+                    wideMeter(title: "5-Hour Limit", window: snapshot?.primaryWindow)
+                    Spacer(minLength: 8)
+                    wideMeter(title: "Weekly Limit", window: snapshot?.secondaryWindow)
                 }
-            } else if let primary = snapshot?.primaryWindow {
-                featuredMedium(title: "5-Hour Limit", window: primary)
-            } else if let secondary = snapshot?.secondaryWindow {
-                featuredMedium(title: "Weekly Limit", window: secondary)
-            } else {
-                noDataView
             }
         }
         .padding(12)
@@ -204,9 +363,9 @@ struct CodexWidgetContentView: View {
         }
     }
 
-    private func compactMeter(title: String, window: UsageWindow) -> some View {
-        let remainingPercent = window.remainingPercent
-        let metricColor = theme.metricColor(for: remainingPercent)
+    private func compactMeter(title: String, window: UsageWindow?) -> some View {
+        let remainingPercent = window?.remainingPercent
+        let metricColor = remainingPercent.map(theme.metricColor) ?? theme.secondaryText
 
         return VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .center, spacing: 6) {
@@ -217,7 +376,7 @@ struct CodexWidgetContentView: View {
                         .foregroundStyle(theme.secondaryText)
                         .lineLimit(1)
 
-                    if let reset = resetText(for: window) {
+                    if let window, let reset = resetText(for: window) {
                         Text("Resets \(reset)")
                             .font(.system(size: 7, weight: .semibold, design: .rounded))
                             .foregroundStyle(theme.secondaryText)
@@ -236,7 +395,7 @@ struct CodexWidgetContentView: View {
                     .widgetAccentable()
             }
 
-            progressBar(remainingPercent, color: metricColor)
+            progressBar(remainingPercent ?? 0, color: metricColor)
                 .frame(height: 5)
         }
     }
@@ -276,9 +435,9 @@ struct CodexWidgetContentView: View {
         }
     }
 
-    private func wideMeter(title: String, window: UsageWindow) -> some View {
-        let remainingPercent = window.remainingPercent
-        let metricColor = theme.metricColor(for: remainingPercent)
+    private func wideMeter(title: String, window: UsageWindow?) -> some View {
+        let remainingPercent = window?.remainingPercent
+        let metricColor = remainingPercent.map(theme.metricColor) ?? theme.secondaryText
 
         return VStack(alignment: .leading, spacing: 3) {
             HStack(alignment: .center, spacing: 10) {
@@ -288,7 +447,7 @@ struct CodexWidgetContentView: View {
                         .tracking(0.7)
                         .foregroundStyle(theme.secondaryText)
 
-                    if let reset = resetText(for: window) {
+                    if let window, let reset = resetText(for: window) {
                         Text("Resets \(reset)")
                             .font(.system(size: 8, weight: .semibold, design: .rounded))
                             .foregroundStyle(theme.secondaryText)
@@ -305,7 +464,7 @@ struct CodexWidgetContentView: View {
                     .widgetAccentable()
             }
 
-            progressBar(remainingPercent, color: metricColor)
+            progressBar(remainingPercent ?? 0, color: metricColor)
                 .frame(height: 6)
         }
     }
@@ -391,10 +550,6 @@ struct CodexWidgetContentView: View {
                         )
                     )
             )
-            .overlay {
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .stroke(theme.border, lineWidth: 1)
-            }
     }
 
     private func progressBar(_ remainingPercent: Double, color: Color) -> some View {
@@ -405,15 +560,27 @@ struct CodexWidgetContentView: View {
                 Capsule()
                     .fill(theme.track)
                 Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [color.opacity(0.70), color, color.opacity(0.92)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
+                    .fill(color)
                     .frame(width: geometry.size.width * normalized)
-                    .shadow(color: color.opacity(0.36), radius: 3, x: 0, y: 1)
+                    .widgetAccentable()
+            }
+        }
+    }
+
+    private func segmentedProgress(
+        _ remainingPercent: Double,
+        color: Color,
+        segments: Int
+    ) -> some View {
+        let normalized = max(0, min(100, remainingPercent)) / 100
+        let activeSegments = normalized == 0
+            ? 0
+            : min(segments, Int(ceil(normalized * Double(segments))))
+
+        return HStack(spacing: 3) {
+            ForEach(0..<segments, id: \.self) { index in
+                Capsule()
+                    .fill(index < activeSegments ? color : theme.track)
                     .widgetAccentable()
             }
         }
