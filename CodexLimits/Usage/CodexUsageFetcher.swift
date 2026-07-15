@@ -55,12 +55,18 @@ private struct CodexUsageResponse: Codable {
 
 enum CodexUsageFetcherError: LocalizedError {
     case invalidResponse
+    case signedOut
+    case serviceUnavailable
     case scriptFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .invalidResponse:
             return String(localized: "error.parseFailed")
+        case .signedOut:
+            return String(localized: "content.notFetched")
+        case .serviceUnavailable:
+            return "ChatGPT is temporarily unavailable. Your saved usage data is unchanged."
         case .scriptFailed(let message):
             return String(
                 format: String(localized: "error.fetchFailed"),
@@ -100,6 +106,20 @@ struct CodexUsageFetcher {
         if let data = json.data(using: .utf8),
            let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
            let message = object["__error"] as? String {
+            let normalizedMessage = message.lowercased()
+            if normalizedMessage.contains("missing access token")
+                || normalizedMessage.contains("http 401")
+                || normalizedMessage.contains("http 403") {
+                throw CodexUsageFetcherError.signedOut
+            }
+            if normalizedMessage.contains("upstream connect")
+                || normalizedMessage.contains("connection timeout")
+                || normalizedMessage.contains("remote connection failure")
+                || normalizedMessage.contains("failed to fetch")
+                || normalizedMessage.contains("load failed")
+                || normalizedMessage.contains("http 5") {
+                throw CodexUsageFetcherError.serviceUnavailable
+            }
             throw CodexUsageFetcherError.scriptFailed(message)
         }
         return json

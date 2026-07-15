@@ -109,7 +109,9 @@ struct CodexWidgetContentView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [theme.backgroundTop, theme.backgroundBottom],
+                colors: colorScheme == .dark
+                    ? [theme.backgroundTop, theme.backgroundBottom]
+                    : [Color.white, Color(white: 0.965)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -243,35 +245,33 @@ struct CodexWidgetContentView: View {
         let remainingPercent = window.remainingPercent
         let metricColor = theme.metricColor(for: remainingPercent)
 
-        return panel(padding: 9) {
+        return panel(padding: 9, fillsHeight: true) {
             VStack(alignment: .leading, spacing: 7) {
-                HStack(alignment: .bottom, spacing: 8) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(title)
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .tracking(0.8)
-                            .foregroundStyle(theme.secondaryText)
+                Text(title)
+                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .tracking(0.5)
+                    .foregroundStyle(theme.secondaryText)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
 
-                        if let reset = resetText(for: window) {
-                            Text("Resets \(reset)")
-                                .font(.system(size: 8, weight: .semibold, design: .rounded))
-                                .foregroundStyle(theme.secondaryText)
-                                .lineLimit(1)
-                        }
-                    }
-
-                    Spacer()
-
-                    Text(UsagePercentFormatter.format(remainingPercent))
-                        .font(.system(size: 34, weight: .heavy, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(metricColor)
-                        .lineLimit(1)
-                        .widgetAccentable()
-                }
+                Text(UsagePercentFormatter.format(remainingPercent))
+                    .font(.system(size: 32, weight: .heavy, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(metricColor)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .widgetAccentable()
 
                 progressBar(remainingPercent, color: metricColor)
                     .frame(height: 7)
+
+                if let reset = resetText(for: window) {
+                    Text("Resets \(reset)")
+                        .font(.system(size: 8, weight: .semibold, design: .rounded))
+                        .foregroundStyle(theme.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                }
             }
         }
     }
@@ -369,16 +369,23 @@ struct CodexWidgetContentView: View {
 
     private func panel<Content: View>(
         padding: CGFloat,
+        fillsHeight: Bool = false,
         @ViewBuilder content: () -> Content
     ) -> some View {
         content()
             .padding(padding)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(
+                maxWidth: .infinity,
+                maxHeight: fillsHeight ? .infinity : nil,
+                alignment: .leading
+            )
             .background(
                 RoundedRectangle(cornerRadius: 17, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: [theme.panelTop, theme.panelBottom],
+                            colors: colorScheme == .dark
+                                ? [theme.panelTop, theme.panelBottom]
+                                : [Color.white, Color(white: 0.97)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )

@@ -7,6 +7,7 @@ import WidgetKit
 @MainActor
 final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate {
     static let shared = AppState()
+    private static let loginStateKey = "CodexLimits.isLoggedIn"
 
     @Published private(set) var snapshot: UsageSnapshot?
     @Published private(set) var statusMessage: String
@@ -33,6 +34,8 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
         self.statusMessage = storedSnapshot == nil
             ? String(localized: "content.notFetched")
             : String(localized: "status.updated")
+        self.isLoggedIn = (UserDefaults.standard.object(forKey: Self.loginStateKey) as? Bool)
+            ?? (storedSnapshot != nil)
         self.isMenuBarItemVisible = MenuBarSettings.isItemVisible
         self.showsPercentagesInMenuBar = MenuBarSettings.showsPercentages
         self.menuBarTextSize = MenuBarSettings.textSize
@@ -46,9 +49,7 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
         )
         webView.navigationDelegate = self
         webView.uiDelegate = self
-        if let url = URL(string: "https://chatgpt.com/codex/cloud/settings/analytics#usage") {
-            webView.load(URLRequest(url: url))
-        }
+        loadLoginPage()
         startAutoRefresh()
         startSnapshotSync()
         WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
@@ -67,19 +68,16 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
             isRefreshing = false
         }
 
-        let hasValidSession = await fetcher.hasValidSession(using: webView)
-        isLoggedIn = hasValidSession
-        guard hasValidSession else {
-            statusMessage = String(localized: "content.notFetched")
-            return
-        }
-
         do {
             let newSnapshot = try await fetcher.fetch(using: webView)
             try UsageSnapshotStore.save(newSnapshot)
             snapshot = newSnapshot
+            updateLoginState(true)
             statusMessage = String(localized: "status.updated")
             WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+        } catch CodexUsageFetcherError.signedOut {
+            updateLoginState(false)
+            statusMessage = String(localized: "content.notFetched")
         } catch {
             statusMessage = error.localizedDescription
         }
@@ -104,6 +102,25 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     func updateMenuBarTextSize(_ size: MenuBarTextSize) {
         MenuBarSettings.saveTextSize(size)
         menuBarTextSize = size
+    }
+
+    private func updateLoginState(_ isLoggedIn: Bool) {
+        self.isLoggedIn = isLoggedIn
+        UserDefaults.standard.set(isLoggedIn, forKey: Self.loginStateKey)
+    }
+
+    func reloadLoginPage() {
+        loadLoginPage(ignoringCache: true)
+    }
+
+    private func loadLoginPage(ignoringCache: Bool = false) {
+        guard let url = URL(string: "https://chatgpt.com/") else { return }
+        let request = URLRequest(
+            url: url,
+            cachePolicy: ignoringCache ? .reloadIgnoringLocalCacheData : .useProtocolCachePolicy,
+            timeoutInterval: 30
+        )
+        webView.load(request)
     }
 
     func startAutoRefresh() {

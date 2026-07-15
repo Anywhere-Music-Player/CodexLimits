@@ -85,6 +85,7 @@ private enum DashboardTheme {
 }
 
 struct SettingsView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: AppState
     @State private var refreshMinutes = RefreshIntervalSettings.currentMinutes
     @State private var isLoginExpanded = false
@@ -92,7 +93,9 @@ struct SettingsView: View {
     var body: some View {
         ZStack {
             LinearGradient(
-                colors: [DashboardTheme.backgroundTop, DashboardTheme.backgroundBottom],
+                colors: colorScheme == .dark
+                    ? [DashboardTheme.backgroundTop, DashboardTheme.backgroundBottom]
+                    : [Color.white, Color(nsColor: .windowBackgroundColor)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -430,6 +433,7 @@ struct SettingsView: View {
             Spacer()
 
             Button {
+                state.reloadLoginPage()
                 isLoginExpanded = true
             } label: {
                 Label(
@@ -463,6 +467,17 @@ struct SettingsView: View {
                 }
 
                 Spacer()
+
+                Button {
+                    state.reloadLoginPage()
+                } label: {
+                    Label("Reload page", systemImage: "arrow.clockwise")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .padding(.horizontal, 14)
+                        .frame(height: 34)
+                        .background(Capsule().fill(Color.white.opacity(0.08)))
+                }
+                .buttonStyle(.plain)
 
                 Button {
                     isLoginExpanded = false
