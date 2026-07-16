@@ -124,6 +124,9 @@ struct SettingsView: View {
                 isLoginExpanded = false
             }
         }
+        .onDisappear {
+            state.closeLoginPage()
+        }
         .sheet(
             isPresented: Binding(
                 get: { state.popupWebView != nil },
@@ -512,6 +515,7 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
 
                 Button {
+                    state.closeLoginPage()
                     isLoginExpanded = false
                 } label: {
                     Label("Back to dashboard", systemImage: "chevron.left")
@@ -523,13 +527,19 @@ struct SettingsView: View {
                 .buttonStyle(.plain)
             }
 
-            CodexWebView(webView: state.webView)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(DashboardTheme.border, lineWidth: 1)
-                }
+            if let loginWebView = state.loginWebView {
+                CodexWebView(webView: loginWebView)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(DashboardTheme.border, lineWidth: 1)
+                    }
+            } else {
+                ProgressView()
+                    .controlSize(.large)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
     }
 

@@ -151,13 +151,12 @@ struct CodexWidgetContentView: View {
         VStack(alignment: .leading, spacing: 7) {
             header
 
-            VStack(spacing: 0) {
+            VStack(spacing: 12) {
                 themeTwoCompactMeter(
                     title: "5-Hour Limit",
                     window: snapshot?.primaryWindow,
                     segments: 12
                 )
-                Spacer(minLength: 8)
                 themeTwoCompactMeter(
                     title: "Weekly Limit",
                     window: snapshot?.secondaryWindow,
@@ -166,7 +165,8 @@ struct CodexWidgetContentView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(11)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -174,13 +174,12 @@ struct CodexWidgetContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             header
 
-            VStack(spacing: 0) {
+            VStack(spacing: 16) {
                 themeTwoCompactMeter(
                     title: "5-Hour Limit",
                     window: snapshot?.primaryWindow,
                     segments: 20
                 )
-                Spacer(minLength: 8)
                 themeTwoCompactMeter(
                     title: "Weekly Limit",
                     window: snapshot?.secondaryWindow,
@@ -189,7 +188,8 @@ struct CodexWidgetContentView: View {
             }
             .frame(maxHeight: .infinity)
         }
-        .padding(12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -318,15 +318,15 @@ struct CodexWidgetContentView: View {
         VStack(alignment: .leading, spacing: 7) {
             header
 
-            panel(padding: 0, fillsHeight: true) {
-                VStack(spacing: 0) {
+            panel(padding: 6, fillsHeight: true) {
+                VStack(spacing: 12) {
                     compactMeter(title: "5-Hour Limit", window: snapshot?.primaryWindow)
-                    Spacer(minLength: 8)
                     compactMeter(title: "Weekly Limit", window: snapshot?.secondaryWindow)
                 }
             }
         }
-        .padding(11)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
@@ -334,15 +334,15 @@ struct CodexWidgetContentView: View {
         VStack(alignment: .leading, spacing: 8) {
             header
 
-            panel(padding: 0, fillsHeight: true) {
-                VStack(spacing: 0) {
+            panel(padding: 8, fillsHeight: true) {
+                VStack(spacing: 16) {
                     wideMeter(title: "5-Hour Limit", window: snapshot?.primaryWindow)
-                    Spacer(minLength: 8)
                     wideMeter(title: "Weekly Limit", window: snapshot?.secondaryWindow)
                 }
             }
         }
-        .padding(12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 

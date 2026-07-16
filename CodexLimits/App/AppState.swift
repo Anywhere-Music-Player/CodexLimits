@@ -13,24 +13,19 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     @Published private(set) var statusMessage: String
     @Published private(set) var isRefreshing = false
     @Published private(set) var isLoggedIn = false
+    @Published private(set) var loginWebView: WKWebView?
     @Published private(set) var popupWebView: WKWebView?
     @Published private(set) var isMenuBarItemVisible: Bool
     @Published private(set) var showsPercentagesInMenuBar: Bool
     @Published private(set) var menuBarTextSize: MenuBarTextSize
     @Published private(set) var widgetLayoutStyle: WidgetLayoutStyle
 
-    let webView: WKWebView
-
     private let fetcher = CodexUsageFetcher()
     private var refreshTask: Task<Void, Never>?
     private var snapshotSyncTask: Task<Void, Never>?
-    private var pageIsReady = false
 
     override init() {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .default()
         let storedSnapshot = UsageSnapshotStore.load()
-        self.webView = WKWebView(frame: .zero, configuration: configuration)
         self.snapshot = storedSnapshot
         self.statusMessage = storedSnapshot == nil
             ? String(localized: "content.notFetched")
@@ -49,34 +44,33 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
             name: NSWorkspace.didWakeNotification,
             object: nil
         )
-        webView.navigationDelegate = self
-        webView.uiDelegate = self
-        loadLoginPage()
         startAutoRefresh()
         startSnapshotSync()
         WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+        Task { [weak self] in
+            await self?.refresh()
+        }
     }
 
     func refresh() async {
-        guard pageIsReady, !isRefreshing else {
-            if !pageIsReady {
-                statusMessage = String(localized: "status.loadingLogin")
-            }
-            return
-        }
+        guard !isRefreshing else { return }
 
+        let wasLoggedIn = isLoggedIn
         isRefreshing = true
         defer {
             isRefreshing = false
         }
 
         do {
-            let newSnapshot = try await fetcher.fetch(using: webView)
+            let newSnapshot = try await fetcher.fetch()
             try UsageSnapshotStore.save(newSnapshot)
             snapshot = newSnapshot
             updateLoginState(true)
             statusMessage = String(localized: "status.updated")
             WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+            if !wasLoggedIn {
+                discardLoginWebViews()
+            }
         } catch CodexUsageFetcherError.signedOut {
             updateLoginState(false)
             statusMessage = String(localized: "content.notFetched")
@@ -118,17 +112,29 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     }
 
     func reloadLoginPage() {
-        loadLoginPage(ignoringCache: true)
-    }
-
-    private func loadLoginPage(ignoringCache: Bool = false) {
         guard let url = URL(string: "https://chatgpt.com/") else { return }
+        let webView: WKWebView
+        if let existingWebView = loginWebView {
+            webView = existingWebView
+        } else {
+            let configuration = WKWebViewConfiguration()
+            configuration.websiteDataStore = .default()
+            let newWebView = WKWebView(frame: .zero, configuration: configuration)
+            newWebView.navigationDelegate = self
+            newWebView.uiDelegate = self
+            loginWebView = newWebView
+            webView = newWebView
+        }
         let request = URLRequest(
             url: url,
-            cachePolicy: ignoringCache ? .reloadIgnoringLocalCacheData : .useProtocolCachePolicy,
+            cachePolicy: .reloadIgnoringLocalCacheData,
             timeoutInterval: 30
         )
         webView.load(request)
+    }
+
+    func closeLoginPage() {
+        discardLoginWebViews()
     }
 
     func startAutoRefresh() {
@@ -172,16 +178,8 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        if webView === self.webView {
-            pageIsReady = true
-            Task { await refresh() }
-        } else {
-            Task {
-                if await fetcher.hasValidSession(using: self.webView) {
-                    closePopup()
-                }
-            }
-        }
+        guard webView === loginWebView || webView === popupWebView else { return }
+        Task { await refresh() }
     }
 
     func webView(
@@ -215,7 +213,20 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     func closePopup() {
         popupWebView?.navigationDelegate = nil
         popupWebView?.uiDelegate = nil
+        popupWebView?.stopLoading()
         popupWebView = nil
         Task { await refresh() }
+    }
+
+    private func discardLoginWebViews() {
+        loginWebView?.navigationDelegate = nil
+        loginWebView?.uiDelegate = nil
+        loginWebView?.stopLoading()
+        loginWebView = nil
+
+        popupWebView?.navigationDelegate = nil
+        popupWebView?.uiDelegate = nil
+        popupWebView?.stopLoading()
+        popupWebView = nil
     }
 }
