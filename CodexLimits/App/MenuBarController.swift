@@ -146,17 +146,42 @@ final class MenuBarController: NSObject {
     }
 
     private func appendPercent(_ percent: Double?, to title: NSMutableAttributedString) {
+        func adaptiveColor(light: NSColor, dark: NSColor) -> NSColor {
+            NSColor(name: nil) { appearance in
+                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                    ? dark
+                    : light
+            }
+        }
+
         let color: NSColor
         if let percent {
             switch UsageLevel.resolve(percent) {
-            case .normal: color = .systemGreen
+            case .normal:
+                color = adaptiveColor(
+                    light: NSColor(calibratedRed: 0.03, green: 0.58, blue: 0.21, alpha: 1),
+                    dark: .systemGreen
+                )
             case .good:
-                color = NSColor(calibratedRed: 0.52, green: 0.80, blue: 0.09, alpha: 1)
+                color = adaptiveColor(
+                    light: NSColor(calibratedRed: 0.36, green: 0.55, blue: 0.00, alpha: 1),
+                    dark: NSColor(calibratedRed: 0.52, green: 0.80, blue: 0.09, alpha: 1)
+                )
             case .warning:
-                color = NSColor(calibratedRed: 0.96, green: 0.62, blue: 0.04, alpha: 1)
+                color = adaptiveColor(
+                    light: NSColor(calibratedRed: 0.72, green: 0.43, blue: 0.00, alpha: 1),
+                    dark: NSColor(calibratedRed: 0.96, green: 0.62, blue: 0.04, alpha: 1)
+                )
             case .low:
-                color = NSColor(calibratedRed: 0.98, green: 0.45, blue: 0.09, alpha: 1)
-            case .danger: color = .systemRed
+                color = adaptiveColor(
+                    light: NSColor(calibratedRed: 0.78, green: 0.29, blue: 0.04, alpha: 1),
+                    dark: NSColor(calibratedRed: 0.98, green: 0.45, blue: 0.09, alpha: 1)
+                )
+            case .danger:
+                color = adaptiveColor(
+                    light: NSColor(calibratedRed: 0.78, green: 0.16, blue: 0.16, alpha: 1),
+                    dark: .systemRed
+                )
             }
         } else {
             color = .secondaryLabelColor

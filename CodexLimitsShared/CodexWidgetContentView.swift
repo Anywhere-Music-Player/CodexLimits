@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import WidgetKit
 
@@ -31,16 +32,50 @@ private struct WidgetTheme {
 
     func metricColor(for remainingPercent: Double?) -> Color {
         guard let remainingPercent else { return secondaryText }
-        if usesSystemTint {
-            return accent
-        }
         switch UsageLevel.resolve(remainingPercent) {
-        case .normal: return accent
-        case .good: return Color(red: 0.52, green: 0.80, blue: 0.09)
-        case .warning: return Color(red: 0.96, green: 0.62, blue: 0.04)
-        case .low: return Color(red: 0.98, green: 0.45, blue: 0.09)
-        case .danger: return danger
+        case .normal: return Self.healthyUsageColor
+        case .good: return Self.goodUsageColor
+        case .warning: return Self.warningUsageColor
+        case .low: return Self.lowUsageColor
+        case .danger: return Self.criticalUsageColor
         }
+    }
+
+    private static let healthyUsageColor = adaptiveUsageColor(
+        light: usageNSColor(0.03, 0.58, 0.21),
+        dark: usageNSColor(0.13, 0.77, 0.37)
+    )
+    private static let goodUsageColor = adaptiveUsageColor(
+        light: usageNSColor(0.36, 0.55, 0.00),
+        dark: usageNSColor(0.52, 0.80, 0.09)
+    )
+    private static let warningUsageColor = adaptiveUsageColor(
+        light: usageNSColor(0.72, 0.43, 0.00),
+        dark: usageNSColor(0.96, 0.62, 0.04)
+    )
+    private static let lowUsageColor = adaptiveUsageColor(
+        light: usageNSColor(0.78, 0.29, 0.04),
+        dark: usageNSColor(0.98, 0.45, 0.09)
+    )
+    private static let criticalUsageColor = adaptiveUsageColor(
+        light: usageNSColor(0.78, 0.16, 0.16),
+        dark: usageNSColor(0.94, 0.27, 0.27)
+    )
+
+    private static func adaptiveUsageColor(light: NSColor, dark: NSColor) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                ? dark
+                : light
+        })
+    }
+
+    private static func usageNSColor(
+        _ red: CGFloat,
+        _ green: CGFloat,
+        _ blue: CGFloat
+    ) -> NSColor {
+        NSColor(calibratedRed: red, green: green, blue: blue, alpha: 1)
     }
 
     private static let dark = WidgetTheme(

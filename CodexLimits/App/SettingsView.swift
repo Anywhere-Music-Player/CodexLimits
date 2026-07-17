@@ -19,14 +19,6 @@ private enum DashboardTheme {
         light: nsColor(0.91, 0.97, 0.93, 0.97),
         dark: nsColor(0.025, 0.095, 0.12, 0.98)
     )
-    static let panelStrongTop = adaptive(
-        light: nsColor(0.95, 1.00, 0.97, 0.99),
-        dark: nsColor(0.075, 0.22, 0.19, 0.99)
-    )
-    static let panelStrongBottom = adaptive(
-        light: nsColor(0.84, 0.96, 0.89, 0.99),
-        dark: nsColor(0.03, 0.12, 0.13, 0.99)
-    )
     static let border = adaptive(
         light: nsColor(0.04, 0.34, 0.27, 0.24),
         dark: nsColor(0.18, 0.75, 0.66, 0.34)
@@ -47,22 +39,6 @@ private enum DashboardTheme {
         light: nsColor(1.00, 0.49, 0.04),
         dark: nsColor(1.00, 0.58, 0.08)
     )
-    static let danger = adaptive(
-        light: nsColor(1.00, 0.10, 0.24),
-        dark: nsColor(1.00, 0.20, 0.32)
-    )
-
-    static func metricColor(for remainingPercent: Double?) -> Color {
-        guard let remainingPercent else { return secondaryText }
-        switch UsageLevel.resolve(remainingPercent) {
-        case .normal: return accent
-        case .good: return Color(red: 0.52, green: 0.80, blue: 0.09)
-        case .warning: return Color(red: 0.96, green: 0.62, blue: 0.04)
-        case .low: return Color(red: 0.98, green: 0.45, blue: 0.09)
-        case .danger: return danger
-        }
-    }
-
     private static func adaptive(light: NSColor, dark: NSColor) -> Color {
         Color(nsColor: NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
@@ -170,7 +146,6 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 dashboardHeader
-                usageDashboard
                 automationPanel
                 menuBarPanel
                 widgetPanel
@@ -247,72 +222,6 @@ struct SettingsView: View {
             return "updated \(fetchedAt.formatted(date: .omitted, time: .shortened))"
         }
         return state.statusMessage.lowercased()
-    }
-
-    private var usageDashboard: some View {
-        VStack(spacing: 12) {
-            usageCard(title: "5-hour window", window: state.snapshot?.primaryWindow)
-            usageCard(title: "weekly window", window: state.snapshot?.secondaryWindow)
-        }
-    }
-
-    private func usageCard(title: String, window: UsageWindow?) -> some View {
-        let remainingPercent = window?.remainingPercent
-        let metricColor = remainingPercent.map(DashboardTheme.metricColor)
-            ?? DashboardTheme.secondaryText
-
-        return VStack(alignment: .leading, spacing: 15) {
-            HStack(alignment: .bottom, spacing: 16) {
-                VStack(alignment: .leading, spacing: 7) {
-                    Text(title.uppercased())
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .tracking(1.1)
-                        .foregroundStyle(DashboardTheme.secondaryText)
-
-                    Text(UsagePercentFormatter.format(remainingPercent))
-                        .font(.system(size: 46, weight: .heavy, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(metricColor)
-                }
-
-                Spacer()
-
-                if let window, let reset = resetText(for: window) {
-                    VStack(alignment: .trailing, spacing: 5) {
-                        Text("RESETS")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .tracking(1)
-                            .foregroundStyle(DashboardTheme.secondaryText)
-                        Text(reset)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .multilineTextAlignment(.trailing)
-                    }
-                }
-            }
-
-            progressBar(remainingPercent ?? 0, color: metricColor)
-                .frame(height: 11)
-        }
-        .dashboardPanel(strong: true)
-    }
-
-    private var emptyUsageCard: some View {
-        HStack(spacing: 14) {
-            Image(systemName: "chart.bar.xaxis")
-                .font(.title2)
-                .foregroundStyle(DashboardTheme.secondaryText)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("No usage data")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                Text("Sign in to Codex to load the latest limit.")
-                    .font(.caption)
-                    .foregroundStyle(DashboardTheme.secondaryText)
-            }
-            Spacer()
-        }
-        .dashboardPanel(strong: true)
     }
 
     private var automationPanel: some View {
@@ -566,48 +475,16 @@ struct SettingsView: View {
         }
     }
 
-    private func progressBar(_ remainingPercent: Double, color: Color) -> some View {
-        let normalized = CGFloat(max(0, min(100, remainingPercent)) / 100)
-
-        return GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color.white.opacity(0.10))
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            colors: [color.opacity(0.72), color, color.opacity(0.92)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .frame(width: geometry.size.width * normalized)
-                    .shadow(color: color.opacity(0.34), radius: 4, x: 0, y: 1)
-            }
-        }
-    }
-
-    private func resetText(for window: UsageWindow) -> String? {
-        guard let resetAt = window.resetAt else { return nil }
-        if window.limitWindowSeconds >= 24 * 60 * 60 {
-            return resetAt.formatted(
-                .dateTime.month(.abbreviated).day().hour().minute()
-            )
-        }
-        return resetAt.formatted(date: .omitted, time: .shortened)
-    }
 }
 
 private extension View {
-    func dashboardPanel(strong: Bool = false) -> some View {
+    func dashboardPanel() -> some View {
         padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(
                         LinearGradient(
-                            colors: strong
-                                ? [DashboardTheme.panelStrongTop, DashboardTheme.panelStrongBottom]
-                                : [DashboardTheme.panelTop, DashboardTheme.panelBottom],
+                            colors: [DashboardTheme.panelTop, DashboardTheme.panelBottom],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
