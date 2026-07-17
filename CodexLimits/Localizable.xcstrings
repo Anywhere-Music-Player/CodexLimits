@@ -7,6 +7,12 @@
     "•" : {
 
     },
+    "45%" : {
+
+    },
+    "Applies to every light and dark color" : {
+
+    },
     "Authentication required" : {
 
     },
@@ -14,9 +20,6 @@
 
     },
     "Back to dashboard" : {
-
-    },
-    "Clean card with a continuous progress bar" : {
 
     },
     "codex" : {
@@ -571,6 +574,9 @@
         }
       }
     },
+    "Dark preview" : {
+
+    },
     "error.fetchFailed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -837,6 +843,12 @@
           }
         }
       }
+    },
+    "Global HSB adjustment" : {
+
+    },
+    "Light preview" : {
+
     },
     "Manage login" : {
 
@@ -1301,10 +1313,22 @@
     "Reload page" : {
 
     },
+    "Reset" : {
+
+    },
+    "Reset All Colors" : {
+
+    },
+    "Reset HSB" : {
+
+    },
     "RESETS" : {
 
     },
     "Resets %@" : {
+
+    },
+    "Settings section" : {
 
     },
     "Show app" : {
@@ -1316,16 +1340,10 @@
     "Sign in" : {
 
     },
-    "Sign in to Codex to load the latest limit." : {
-
-    },
     "Sign in to fetch usage" : {
 
     },
     "Signed in" : {
-
-    },
-    "Split reset card with segmented progress" : {
 
     },
     "status.loadingLogin" : {
