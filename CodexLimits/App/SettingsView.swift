@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import WebKit
+import WidgetKit
 
 private enum DashboardTheme {
     static let backgroundTop = adaptive(
@@ -62,11 +63,22 @@ private enum DashboardTheme {
     }
 }
 
+private enum SettingsSection: String, CaseIterable, Identifiable {
+    case general
+    case appearance
+    case account
+
+    var id: String { rawValue }
+    var title: String { rawValue.capitalized }
+}
+
 struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: AppState
     @State private var refreshMinutes = RefreshIntervalSettings.currentMinutes
     @State private var isLoginExpanded = false
+    @State private var selectedSection: SettingsSection = .general
+    @State private var colorSettings = UsageColorSettingsStore.current
 
     var body: some View {
         ZStack {
@@ -146,14 +158,43 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 dashboardHeader
-                automationPanel
-                menuBarPanel
-                widgetPanel
-                accountPanel
+                settingsTabs
+                selectedSettingsContent
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollIndicators(.hidden)
+    }
+
+    private var settingsTabs: some View {
+        HStack {
+            Spacer()
+            Picker("Settings section", selection: $selectedSection) {
+                ForEach(SettingsSection.allCases) { section in
+                    Text(section.title).tag(section)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 420)
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var selectedSettingsContent: some View {
+        switch selectedSection {
+        case .general:
+            automationPanel
+        case .appearance:
+            VStack(spacing: 14) {
+                menuBarPanel
+                widgetPanel
+                colorSettingsPanel
+            }
+        case .account:
+            accountPanel
+        }
     }
 
     private var dashboardHeader: some View {
@@ -344,6 +385,292 @@ struct SettingsView: View {
             .frame(width: 210)
         }
         .dashboardPanel()
+    }
+
+    private var colorSettingsPanel: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader(
+                title: "Usage colors",
+                subtitle: "Customize both appearances and tune every color together",
+                symbol: "paintpalette"
+            )
+
+            HStack(alignment: .top, spacing: 12) {
+                palettePreview(appearance: .light)
+                palettePreview(appearance: .dark)
+            }
+
+            HStack(alignment: .top, spacing: 12) {
+                paletteEditor(appearance: .light)
+                paletteEditor(appearance: .dark)
+            }
+
+            Rectangle()
+                .fill(DashboardTheme.border)
+                .frame(height: 1)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Global HSB adjustment")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                        Text("Applies to every light and dark color")
+                            .font(.caption)
+                            .foregroundStyle(DashboardTheme.secondaryText)
+                    }
+                    Spacer()
+                    Button("Reset HSB") {
+                        var updated = colorSettings
+                        updated.hueShiftDegrees = 0
+                        updated.saturationAdjustment = 0
+                        updated.brightnessAdjustment = 0
+                        applyColorSettings(updated)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                hsbSlider(
+                    title: "Hue",
+                    value: adjustmentBinding(\.hueShiftDegrees),
+                    range: -180...180,
+                    step: 1,
+                    valueText: "\(Int(colorSettings.hueShiftDegrees.rounded()))°"
+                )
+                hsbSlider(
+                    title: "Saturation",
+                    value: adjustmentBinding(\.saturationAdjustment),
+                    range: -0.5...0.5,
+                    step: 0.01,
+                    valueText: String(format: "%+.0f%%", colorSettings.saturationAdjustment * 100)
+                )
+                hsbSlider(
+                    title: "Brightness",
+                    value: adjustmentBinding(\.brightnessAdjustment),
+                    range: -0.5...0.5,
+                    step: 0.01,
+                    valueText: String(format: "%+.0f%%", colorSettings.brightnessAdjustment * 100)
+                )
+            }
+
+            HStack {
+                Spacer()
+                Button("Reset All Colors") {
+                    applyColorSettings(.defaultValue)
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .dashboardPanel()
+    }
+
+    private func palettePreview(appearance: UsagePaletteAppearance) -> some View {
+        let isDark = appearance == .dark
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(isDark ? "Dark preview" : "Light preview")
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                Spacer()
+                Text("45%")
+                    .font(.system(size: 17, weight: .heavy, design: .rounded))
+                    .foregroundStyle(usageColor(for: .warning, appearance: appearance))
+            }
+
+            ForEach(UsageLevel.allCases, id: \.self) { level in
+                HStack(spacing: 8) {
+                    Text(levelRange(level))
+                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .frame(width: 48, alignment: .leading)
+                        .opacity(0.68)
+
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.09))
+                            Capsule()
+                                .fill(usageColor(for: level, appearance: appearance))
+                                .frame(width: geometry.size.width * previewAmount(level))
+                        }
+                    }
+                    .frame(height: 8)
+                }
+                .frame(height: 14)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .foregroundStyle(isDark ? Color.white : Color(red: 0.02, green: 0.12, blue: 0.14))
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(isDark ? Color(red: 0.02, green: 0.11, blue: 0.15) : Color.white)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(isDark ? Color.white.opacity(0.14) : Color.black.opacity(0.10), lineWidth: 1)
+        }
+    }
+
+    private func paletteEditor(appearance: UsagePaletteAppearance) -> some View {
+        let title = appearance == .light ? "Light colors" : "Dark colors"
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(title)
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                Spacer()
+                Button("Reset") {
+                    var updated = colorSettings
+                    if appearance == .light {
+                        updated.light = .defaultLight
+                    } else {
+                        updated.dark = .defaultDark
+                    }
+                    applyColorSettings(updated)
+                }
+                .buttonStyle(.borderless)
+            }
+
+            ForEach(UsageLevel.allCases, id: \.self) { level in
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(levelTitle(level))
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        Text(levelRange(level))
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(DashboardTheme.secondaryText)
+                    }
+                    Spacer()
+                    ColorPicker(
+                        levelTitle(level),
+                        selection: colorBinding(for: level, appearance: appearance),
+                        supportsOpacity: false
+                    )
+                    .labelsHidden()
+                    .frame(width: 30)
+                }
+                .frame(height: 28)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(DashboardTheme.panelTop.opacity(0.62))
+        )
+    }
+
+    private func hsbSlider(
+        title: String,
+        value: Binding<Double>,
+        range: ClosedRange<Double>,
+        step: Double,
+        valueText: String
+    ) -> some View {
+        HStack(spacing: 12) {
+            Text(title)
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .frame(width: 76, alignment: .leading)
+            Slider(value: value, in: range, step: step)
+            Text(valueText)
+                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .frame(width: 52, alignment: .trailing)
+        }
+    }
+
+    private func usageColor(
+        for level: UsageLevel,
+        appearance: UsagePaletteAppearance
+    ) -> Color {
+        let color = colorSettings.resolvedColor(for: level, appearance: appearance)
+        return Color(
+            hue: color.hue,
+            saturation: color.saturation,
+            brightness: color.brightness
+        )
+    }
+
+    private func colorBinding(
+        for level: UsageLevel,
+        appearance: UsagePaletteAppearance
+    ) -> Binding<Color> {
+        Binding(
+            get: { usageColor(for: level, appearance: appearance) },
+            set: { newColor in
+                guard let converted = NSColor(newColor).usingColorSpace(.deviceRGB) else { return }
+                var hue: CGFloat = 0
+                var saturation: CGFloat = 0
+                var brightness: CGFloat = 0
+                var alpha: CGFloat = 0
+                converted.getHue(
+                    &hue,
+                    saturation: &saturation,
+                    brightness: &brightness,
+                    alpha: &alpha
+                )
+
+                var updated = colorSettings
+                updated.setResolvedColor(
+                    UsageHSBColor(
+                        hue: Double(hue),
+                        saturation: Double(saturation),
+                        brightness: Double(brightness)
+                    ),
+                    for: level,
+                    appearance: appearance
+                )
+                applyColorSettings(updated)
+            }
+        )
+    }
+
+    private func adjustmentBinding(
+        _ keyPath: WritableKeyPath<UsageColorSettings, Double>
+    ) -> Binding<Double> {
+        Binding(
+            get: { colorSettings[keyPath: keyPath] },
+            set: { value in
+                var updated = colorSettings
+                updated[keyPath: keyPath] = value
+                applyColorSettings(updated)
+            }
+        )
+    }
+
+    private func applyColorSettings(_ settings: UsageColorSettings) {
+        colorSettings = settings
+        UsageColorSettingsStore.save(settings)
+        NotificationCenter.default.post(name: .usageColorSettingsDidChange, object: nil)
+        WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+    }
+
+    private func levelTitle(_ level: UsageLevel) -> String {
+        switch level {
+        case .normal: return "Healthy"
+        case .good: return "Good"
+        case .warning: return "Attention"
+        case .low: return "Low"
+        case .danger: return "Critical"
+        }
+    }
+
+    private func levelRange(_ level: UsageLevel) -> String {
+        switch level {
+        case .normal: return "81–100"
+        case .good: return "61–80"
+        case .warning: return "41–60"
+        case .low: return "21–40"
+        case .danger: return "0–20"
+        }
+    }
+
+    private func previewAmount(_ level: UsageLevel) -> Double {
+        switch level {
+        case .normal: return 0.90
+        case .good: return 0.70
+        case .warning: return 0.50
+        case .low: return 0.30
+        case .danger: return 0.10
+        }
     }
 
     private var accountPanel: some View {

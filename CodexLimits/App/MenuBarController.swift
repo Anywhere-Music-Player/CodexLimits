@@ -25,6 +25,14 @@ final class MenuBarController: NSObject {
         configureMenu()
         updateTitle(state.snapshot)
 
+        NotificationCenter.default.publisher(for: .usageColorSettingsDidChange)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.updateTitle(self.state.snapshot)
+            }
+            .store(in: &cancellables)
+
         Publishers.CombineLatest4(
             state.$snapshot,
             state.$isMenuBarItemVisible,
@@ -146,41 +154,24 @@ final class MenuBarController: NSObject {
     }
 
     private func appendPercent(_ percent: Double?, to title: NSMutableAttributedString) {
-        func adaptiveColor(light: NSColor, dark: NSColor) -> NSColor {
-            NSColor(name: nil) { appearance in
-                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-                    ? dark
-                    : light
-            }
-        }
-
         let color: NSColor
         if let percent {
-            switch UsageLevel.resolve(percent) {
-            case .normal:
-                color = adaptiveColor(
-                    light: NSColor(calibratedRed: 0.03, green: 0.58, blue: 0.21, alpha: 1),
-                    dark: .systemGreen
+            let settings = UsageColorSettingsStore.current
+            let level = UsageLevel.resolve(percent)
+            color = NSColor(name: nil) { appearance in
+                let paletteAppearance: UsagePaletteAppearance =
+                    appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                    ? .dark
+                    : .light
+                let value = settings.resolvedColor(
+                    for: level,
+                    appearance: paletteAppearance
                 )
-            case .good:
-                color = adaptiveColor(
-                    light: NSColor(calibratedRed: 0.36, green: 0.55, blue: 0.00, alpha: 1),
-                    dark: NSColor(calibratedRed: 0.52, green: 0.80, blue: 0.09, alpha: 1)
-                )
-            case .warning:
-                color = adaptiveColor(
-                    light: NSColor(calibratedRed: 0.72, green: 0.43, blue: 0.00, alpha: 1),
-                    dark: NSColor(calibratedRed: 0.96, green: 0.62, blue: 0.04, alpha: 1)
-                )
-            case .low:
-                color = adaptiveColor(
-                    light: NSColor(calibratedRed: 0.78, green: 0.29, blue: 0.04, alpha: 1),
-                    dark: NSColor(calibratedRed: 0.98, green: 0.45, blue: 0.09, alpha: 1)
-                )
-            case .danger:
-                color = adaptiveColor(
-                    light: NSColor(calibratedRed: 0.78, green: 0.16, blue: 0.16, alpha: 1),
-                    dark: .systemRed
+                return NSColor(
+                    calibratedHue: value.hue,
+                    saturation: value.saturation,
+                    brightness: value.brightness,
+                    alpha: 1
                 )
             }
         } else {
