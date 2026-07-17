@@ -36,7 +36,9 @@ private struct WidgetTheme {
         }
         switch UsageLevel.resolve(remainingPercent) {
         case .normal: return accent
-        case .warning: return warning
+        case .good: return Color(red: 0.52, green: 0.80, blue: 0.09)
+        case .warning: return Color(red: 0.96, green: 0.62, blue: 0.04)
+        case .low: return Color(red: 0.98, green: 0.45, blue: 0.09)
         case .danger: return danger
         }
     }

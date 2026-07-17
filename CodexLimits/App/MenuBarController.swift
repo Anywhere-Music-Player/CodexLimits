@@ -150,7 +150,12 @@ final class MenuBarController: NSObject {
         if let percent {
             switch UsageLevel.resolve(percent) {
             case .normal: color = .systemGreen
-            case .warning: color = .systemOrange
+            case .good:
+                color = NSColor(calibratedRed: 0.52, green: 0.80, blue: 0.09, alpha: 1)
+            case .warning:
+                color = NSColor(calibratedRed: 0.96, green: 0.62, blue: 0.04, alpha: 1)
+            case .low:
+                color = NSColor(calibratedRed: 0.98, green: 0.45, blue: 0.09, alpha: 1)
             case .danger: color = .systemRed
             }
         } else {

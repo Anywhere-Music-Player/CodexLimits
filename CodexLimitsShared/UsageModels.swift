@@ -178,12 +178,16 @@ enum WidgetLayoutStyleSettings {
 
 enum UsageLevel {
     case normal
+    case good
     case warning
+    case low
     case danger
 
     static func resolve(_ remainingPercent: Double) -> UsageLevel {
         if remainingPercent <= 20 { return .danger }
-        if remainingPercent <= 40 { return .warning }
+        if remainingPercent <= 40 { return .low }
+        if remainingPercent <= 60 { return .warning }
+        if remainingPercent <= 80 { return .good }
         return .normal
     }
 }

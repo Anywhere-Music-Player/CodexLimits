@@ -56,7 +56,9 @@ private enum DashboardTheme {
         guard let remainingPercent else { return secondaryText }
         switch UsageLevel.resolve(remainingPercent) {
         case .normal: return accent
-        case .warning: return warning
+        case .good: return Color(red: 0.52, green: 0.80, blue: 0.09)
+        case .warning: return Color(red: 0.96, green: 0.62, blue: 0.04)
+        case .low: return Color(red: 0.98, green: 0.45, blue: 0.09)
         case .danger: return danger
         }
     }
@@ -408,40 +410,29 @@ struct SettingsView: View {
     }
 
     private var widgetPanel: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        HStack(spacing: 16) {
             sectionHeader(
                 title: "Widget theme",
-                subtitle: "Choose how limits are arranged on the desktop",
+                subtitle: "Choose the widget appearance",
                 symbol: "square.grid.2x2"
             )
 
-            HStack(spacing: 16) {
-                Text(
-                    state.widgetLayoutStyle == .themeOne
-                        ? "Clean card with a continuous progress bar"
-                        : "Split reset card with segmented progress"
+            Spacer(minLength: 12)
+
+            Picker(
+                "Widget theme",
+                selection: Binding(
+                    get: { state.widgetLayoutStyle },
+                    set: { state.updateWidgetLayoutStyle($0) }
                 )
-                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                .foregroundStyle(DashboardTheme.secondaryText)
-                .lineLimit(1)
-
-                Spacer(minLength: 12)
-
-                Picker(
-                    "Widget theme",
-                    selection: Binding(
-                        get: { state.widgetLayoutStyle },
-                        set: { state.updateWidgetLayoutStyle($0) }
-                    )
-                ) {
-                    ForEach(WidgetLayoutStyle.allCases) { style in
-                        Text(style.title).tag(style)
-                    }
+            ) {
+                ForEach(WidgetLayoutStyle.allCases) { style in
+                    Text(style.title).tag(style)
                 }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .frame(width: 210)
             }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+            .frame(width: 210)
         }
         .dashboardPanel()
     }
