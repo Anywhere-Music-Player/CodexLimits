@@ -1,7 +1,7 @@
 import Foundation
 import WebKit
 
-private struct CodexUsageResponse: Codable {
+struct CodexUsageResponse: Codable {
     struct RateLimit: Codable {
         struct Window: Codable {
             let used_percent: Double?

@@ -63,13 +63,32 @@ private enum DashboardTheme {
     }
 }
 
-private enum SettingsSection: String, CaseIterable, Identifiable {
+enum SettingsSection: String, CaseIterable, Identifiable {
     case general
-    case appearance
+    case menuBar
+    case themes
+    case colors
     case account
 
     var id: String { rawValue }
-    var title: String { rawValue.capitalized }
+    var title: String {
+        switch self {
+        case .general: String(localized: "General")
+        case .menuBar: String(localized: "Menu bar")
+        case .themes: String(localized: "Themes")
+        case .colors: String(localized: "Usage colors")
+        case .account: String(localized: "Account")
+        }
+    }
+    var symbol: String {
+        switch self {
+        case .general: "gearshape"
+        case .menuBar: "menubar.rectangle"
+        case .themes: "square.grid.2x2"
+        case .colors: "paintpalette"
+        case .account: "person.crop.circle"
+        }
+    }
 }
 
 struct SettingsView: View {
@@ -77,38 +96,39 @@ struct SettingsView: View {
     @ObservedObject var state: AppState
     @State private var refreshMinutes = RefreshIntervalSettings.currentMinutes
     @State private var isLoginExpanded = false
-    @State private var selectedSection: SettingsSection = .general
+    @State var selectedSection: SettingsSection? = .general
+    @State private var previewDark = false
     @State private var colorSettings = UsageColorSettingsStore.current
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: colorScheme == .dark
-                    ? [DashboardTheme.backgroundTop, DashboardTheme.backgroundBottom]
-                    : [Color.white, Color(nsColor: .windowBackgroundColor)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
-
+        NavigationSplitView {
+            List(SettingsSection.allCases, selection: $selectedSection) { section in
+                Label(section.title, systemImage: section.symbol)
+                    .foregroundStyle(selectedSection == section ? Color.white : Color.primary)
+                    .listItemTint(selectedSection == section ? .white : .secondary)
+                    .tag(section)
+            }
+            .listStyle(.sidebar)
+            .navigationTitle("CodexLimits")
+            .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
+        } detail: {
             Group {
                 if isLoginExpanded {
-                    loginContent
+                    loginContent.padding(24)
                 } else {
                     settingsContent
                 }
             }
-            .padding(24)
+            .background(Color(nsColor: .windowBackgroundColor))
+            .navigationTitle((selectedSection ?? .general).title)
         }
-        .foregroundStyle(DashboardTheme.text)
-        .tint(DashboardTheme.accent)
-        .frame(
-            minWidth: 680,
-            maxWidth: .infinity,
-            minHeight: 540,
-            maxHeight: .infinity,
-            alignment: .topLeading
-        )
+        .frame(minWidth: 820, minHeight: 560)
+        .onChange(of: selectedSection) { _, _ in
+            if isLoginExpanded {
+                state.closeLoginPage()
+                isLoginExpanded = false
+            }
+        }
         .onChange(of: state.isLoggedIn) { _, isLoggedIn in
             if isLoggedIn {
                 isLoginExpanded = false
@@ -156,44 +176,60 @@ struct SettingsView: View {
 
     private var settingsContent: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                dashboardHeader
-                settingsTabs
+            VStack(alignment: .leading, spacing: 20) {
+                Text((selectedSection ?? .general).title)
+                    .font(.system(size: 26, weight: .bold))
                 selectedSettingsContent
             }
+            .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .scrollIndicators(.hidden)
-    }
-
-    private var settingsTabs: some View {
-        HStack {
-            Spacer()
-            Picker("Settings section", selection: $selectedSection) {
-                ForEach(SettingsSection.allCases) { section in
-                    Text(section.title).tag(section)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .frame(width: 420)
-            Spacer()
         }
     }
 
     @ViewBuilder
     private var selectedSettingsContent: some View {
-        switch selectedSection {
+        switch selectedSection ?? .general {
         case .general:
+            dashboardHeader
             automationPanel
-        case .appearance:
-            VStack(spacing: 14) {
-                menuBarPanel
-                widgetPanel
-                colorSettingsPanel
-            }
+        case .menuBar:
+            menuBarPanel
+        case .themes:
+            widgetPanel
+        case .colors:
+            colorSettingsPanel
         case .account:
             accountPanel
+        }
+    }
+
+    private var menuBarPreview: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Preview").font(.headline)
+            HStack {
+                Spacer()
+                if state.isMenuBarItemVisible {
+                    if let snapshot = state.snapshot,
+                       snapshot.primaryWindow != nil || snapshot.secondaryWindow != nil,
+                       state.showsPercentagesInMenuBar || state.showsProgressInMenuBar {
+                        VStack(spacing: 1) {
+                            MenuBarLabelPreview(title: MenuBarPresentation.title(
+                                windows: [snapshot.primaryWindow, snapshot.secondaryWindow].compactMap { $0 },
+                                showsPercentages: state.showsPercentagesInMenuBar,
+                                showsProgress: state.showsProgressInMenuBar,
+                                textSize: state.menuBarTextSize
+                            ))
+                            Text("\(String(localized: "usage.updated").trimmingCharacters(in: .whitespacesAndNewlines)) \(snapshot.fetchedAt.formatted(date: .omitted, time: .shortened))")
+                                .font(.system(size: 7)).foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Image("MenuBarIcon").renderingMode(.template)
+                    }
+                }
+                Spacer()
+            }
+            .frame(height: 40)
+            .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
         }
     }
 
@@ -205,7 +241,7 @@ struct SettingsView: View {
 
                 HStack(spacing: 7) {
                     Circle()
-                        .fill(DashboardTheme.accent)
+                        .fill(state.usageStatus.needsAttention ? Color.red : DashboardTheme.accent)
                         .frame(width: 7, height: 7)
                     Text("codex")
                         .foregroundStyle(DashboardTheme.accent)
@@ -213,6 +249,7 @@ struct SettingsView: View {
                     Text("auto")
                     Text("•")
                     Text(updatedStatus)
+                        .foregroundStyle(state.usageStatus.needsAttention ? Color.red : DashboardTheme.secondaryText)
                         .lineLimit(1)
                 }
                 .font(.system(size: 11, weight: .semibold, design: .monospaced))
@@ -259,6 +296,7 @@ struct SettingsView: View {
     }
 
     private var updatedStatus: String {
+        if let message = state.usageStatus.message { return "! \(message)" }
         if let fetchedAt = state.snapshot?.fetchedAt {
             return "updated \(fetchedAt.formatted(date: .omitted, time: .shortened))"
         }
@@ -298,93 +336,113 @@ struct SettingsView: View {
 
     private var menuBarPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeader(
-                title: "Menu bar",
-                subtitle: "Choose what stays visible at a glance",
-                symbol: "menubar.rectangle"
-            )
-
-            HStack(spacing: 24) {
-                Toggle(
-                    "Show app",
-                    isOn: Binding(
-                        get: { state.isMenuBarItemVisible },
-                        set: { state.updateMenuBarItemVisibility($0) }
-                    )
+            HStack {
+                sectionHeader(
+                    title: "Menu bar",
+                    subtitle: "Choose what stays visible at a glance",
+                    symbol: "menubar.rectangle"
                 )
+                Spacer()
+                Toggle("Menu bar", isOn: Binding(
+                    get: { state.isMenuBarItemVisible },
+                    set: { state.updateMenuBarItemVisibility($0) }
+                ))
+                .labelsHidden()
                 .toggleStyle(.switch)
+            }
 
-                Toggle(
-                    "Show percentages",
-                    isOn: Binding(
+            if state.isMenuBarItemVisible {
+                menuBarPreview
+                Divider()
+
+                VStack(spacing: 16) {
+                    settingsToggle("Show percentages", isOn: Binding(
                         get: { state.showsPercentagesInMenuBar },
                         set: { state.updateShowsPercentagesInMenuBar($0) }
-                    )
-                )
-                .toggleStyle(.switch)
-                .disabled(!state.isMenuBarItemVisible)
+                    ))
+                    settingsToggle("Show progress", isOn: Binding(
+                        get: { state.showsProgressInMenuBar },
+                        set: { state.updateShowsProgressInMenuBar($0) }
+                    ))
+                }
 
-                Spacer()
-            }
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
+                Divider()
 
-            Rectangle()
-                .fill(DashboardTheme.border)
-                .frame(height: 1)
-
-            HStack {
-                Text("Text size")
-                    .font(.system(size: 13, weight: .semibold, design: .rounded))
-                    .foregroundStyle(DashboardTheme.secondaryText)
-
-                Spacer()
-
-                Picker(
-                    "Text size",
-                    selection: Binding(
+                HStack {
+                    Text("Text size")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(DashboardTheme.secondaryText)
+                    Spacer()
+                    Picker("Text size", selection: Binding(
                         get: { state.menuBarTextSize },
                         set: { state.updateMenuBarTextSize($0) }
-                    )
-                ) {
-                    ForEach(MenuBarTextSize.allCases) { size in
-                        Text(size.title).tag(size)
+                    )) {
+                        ForEach(MenuBarTextSize.allCases) { size in
+                            Text(size.title).tag(size)
+                        }
                     }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 260)
                 }
-                .labelsHidden()
-                .pickerStyle(.segmented)
-                .frame(width: 260)
-                .disabled(!state.isMenuBarItemVisible)
             }
         }
         .dashboardPanel()
     }
 
-    private var widgetPanel: some View {
-        HStack(spacing: 16) {
-            sectionHeader(
-                title: "Widget theme",
-                subtitle: "Choose the widget appearance",
-                symbol: "square.grid.2x2"
-            )
-
-            Spacer(minLength: 12)
-
-            Picker(
-                "Widget theme",
-                selection: Binding(
-                    get: { state.widgetLayoutStyle },
-                    set: { state.updateWidgetLayoutStyle($0) }
-                )
-            ) {
-                ForEach(WidgetLayoutStyle.allCases) { style in
-                    Text(style.title).tag(style)
-                }
-            }
-            .labelsHidden()
-            .pickerStyle(.segmented)
-            .frame(width: 210)
+    private func settingsToggle(_ title: LocalizedStringKey, isOn: Binding<Bool>) -> some View {
+        HStack {
+            Text(title).font(.system(size: 13, weight: .medium))
+            Spacer()
+            Toggle(title, isOn: isOn).labelsHidden().toggleStyle(.switch)
         }
-        .dashboardPanel()
+    }
+
+    private var widgetPanel: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                Toggle("Dark preview", isOn: $previewDark).toggleStyle(.switch)
+                Spacer()
+            }
+            ForEach(WidgetLayoutStyle.allCases) { style in
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text(style.title).font(.headline)
+                        Spacer()
+                        Button {
+                            state.updateWidgetLayoutStyle(style)
+                        } label: {
+                            Label(state.widgetLayoutStyle == style ? String(localized: "Selected") : String(localized: "Use theme"),
+                                  systemImage: state.widgetLayoutStyle == style ? "checkmark.circle.fill" : "circle")
+                        }
+                        .disabled(state.widgetLayoutStyle == style)
+                    }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 16) {
+                            widgetPreview(style, family: .medium)
+                            widgetPreview(style, family: .small)
+                        }
+                        VStack(alignment: .leading, spacing: 16) {
+                            widgetPreview(style, family: .medium)
+                            widgetPreview(style, family: .small)
+                        }
+                    }
+                }
+                .dashboardPanel()
+            }
+        }
+    }
+
+    private func widgetPreview(_ style: WidgetLayoutStyle, family: CodexWidgetFamily) -> some View {
+        CodexWidgetContentView(
+            snapshot: state.snapshot, family: family, style: style,
+            usageStatus: state.usageStatus
+        )
+            .environment(\.colorScheme, previewDark ? .dark : .light)
+            .environment(\.widgetRenderingMode, .fullColor)
+            .frame(width: family == .small ? 170 : 344, height: 170)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .accessibilityLabel(style.title)
     }
 
     private var colorSettingsPanel: some View {
@@ -807,19 +865,10 @@ struct SettingsView: View {
 private extension View {
     func dashboardPanel() -> some View {
         padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [DashboardTheme.panelTop, DashboardTheme.panelBottom],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 14))
             .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(DashboardTheme.border, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             }
     }
 }
@@ -832,4 +881,22 @@ private struct CodexWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {}
+}
+
+private struct MenuBarLabelPreview: NSViewRepresentable {
+    let title: NSAttributedString
+
+    func makeNSView(context: Context) -> NSTextField {
+        let label = NSTextField(labelWithAttributedString: title)
+        label.alignment = .center
+        return label
+    }
+
+    func updateNSView(_ nsView: NSTextField, context: Context) {
+        nsView.attributedStringValue = title
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSTextField, context: Context) -> CGSize? {
+        nsView.intrinsicContentSize
+    }
 }

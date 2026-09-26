@@ -9,17 +9,25 @@ struct CodexLimitsTimelineProvider: TimelineProvider {
     func getSnapshot(in context: Context, completion: @escaping (CodexLimitsEntry) -> Void) {
         completion(CodexLimitsEntry(
             date: Date(),
-            snapshot: context.isPreview ? Self.placeholderSnapshot : UsageSnapshotStore.load()
+            snapshot: context.isPreview ? Self.placeholderSnapshot : UsageSnapshotStore.load(),
+            usageStatus: context.isPreview ? .ready : UsageStatusStore.load(hasSnapshot: UsageSnapshotStore.load() != nil)
         ))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CodexLimitsEntry>) -> Void) {
-        let entry = CodexLimitsEntry(date: Date(), snapshot: UsageSnapshotStore.load())
+        let now = Date()
+        let snapshot = UsageSnapshotStore.load()
+        let status = UsageStatusStore.load(hasSnapshot: snapshot != nil)
         let widgetKitReloadMinutes = max(5, RefreshIntervalSettings.currentMinutes)
-        let nextUpdate = Date().addingTimeInterval(
+        let nextUpdate = now.addingTimeInterval(
             TimeInterval(widgetKitReloadMinutes * 60)
         )
-        completion(Timeline(entries: [entry], policy: .after(nextUpdate)))
+        // Precomputed entries keep reset countdowns moving even when WidgetKit defers a reload.
+        let dates = (0...60).map { now.addingTimeInterval(TimeInterval($0 * 60)) }
+        let resets = [snapshot?.primaryWindow?.resetAt, snapshot?.secondaryWindow?.resetAt]
+            .compactMap { $0 }.filter { $0 > now && $0 < now.addingTimeInterval(3600) }
+        let entries = Set(dates + resets).sorted().map { CodexLimitsEntry(date: $0, snapshot: snapshot, usageStatus: status) }
+        completion(Timeline(entries: entries, policy: .after(nextUpdate)))
     }
 
     private static let placeholderSnapshot = UsageSnapshot(
@@ -42,6 +50,7 @@ struct CodexLimitsTimelineProvider: TimelineProvider {
 struct CodexLimitsEntry: TimelineEntry {
     let date: Date
     let snapshot: UsageSnapshot?
+    var usageStatus: UsageStatus = .ready
 }
 
 struct CodexLimitsWidgetView: View {
@@ -51,7 +60,9 @@ struct CodexLimitsWidgetView: View {
     var body: some View {
         CodexWidgetContentView(
             snapshot: newestSnapshot(),
-            family: family == .systemSmall ? .small : .medium
+            family: family == .systemSmall ? .small : .medium,
+            date: entry.date,
+            usageStatus: entry.usageStatus
         )
         .widgetURL(URL(string: "codex-limits://open-settings"))
     }

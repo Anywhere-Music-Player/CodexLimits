@@ -33,6 +33,22 @@ final class MenuBarController: NSObject {
             }
             .store(in: &cancellables)
 
+        state.$usageStatus
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                self.updateTitle(self.state.snapshot)
+            }
+            .store(in: &cancellables)
+
+        state.$showsProgressInMenuBar
+            .dropFirst()
+            .sink { [weak self] value in
+                guard let self else { return }
+                self.updateTitle(self.state.snapshot, showsProgress: value)
+            }
+            .store(in: &cancellables)
+
         Publishers.CombineLatest4(
             state.$snapshot,
             state.$isMenuBarItemVisible,
@@ -109,32 +125,46 @@ final class MenuBarController: NSObject {
         return item
     }
 
-    private func updateTitle(_ snapshot: UsageSnapshot?) {
+    private func updateTitle(_ snapshot: UsageSnapshot?, showsProgress: Bool? = nil) {
         guard let button = statusItem.button else { return }
-        guard state.showsPercentagesInMenuBar, let snapshot else {
+        button.toolTip = state.usageStatus.message
+        let progress = showsProgress ?? state.showsProgressInMenuBar
+        guard state.showsPercentagesInMenuBar || progress, let snapshot else {
             showIcon(in: button)
             return
         }
 
+        let windows = [snapshot.primaryWindow, snapshot.secondaryWindow].compactMap { $0 }
+        guard !windows.isEmpty else {
+            showIcon(in: button)
+            return
+        }
+
+        button.contentTintColor = nil
         button.image = nil
         button.imagePosition = .noImage
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
-        let title = NSMutableAttributedString()
-        appendPercent(snapshot.primaryWindow?.remainingPercent, to: title)
-        title.append(NSAttributedString(
-            string: " / ",
-            attributes: baseAttributes(color: .secondaryLabelColor)
-        ))
-        appendPercent(snapshot.secondaryWindow?.remainingPercent, to: title)
+        let title = MenuBarPresentation.title(
+            windows: windows,
+            showsPercentages: state.showsPercentagesInMenuBar,
+            showsProgress: progress,
+            textSize: state.menuBarTextSize
+        )
 
         let updatedLabel = String(localized: "usage.updated")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let updatedTime = snapshot.fetchedAt.formatted(date: .omitted, time: .shortened)
+        var attributes = updatedAtAttributes()
+        if state.usageStatus.needsAttention {
+            attributes[.foregroundColor] = NSColor.systemRed
+        }
         let updatedTitle = NSAttributedString(
-            string: "\(updatedLabel) \(updatedTime)",
-            attributes: updatedAtAttributes()
+            string: state.usageStatus.message.map { "! \($0)" }
+                ?? "\(updatedLabel) \(updatedTime)",
+            attributes: attributes
         )
+        percentagesLabel.alphaValue = state.usageStatus.needsAttention ? 0.5 : 1
 
         percentagesLabel.attributedStringValue = title
         updatedAtLabel.attributedStringValue = updatedTitle
@@ -145,52 +175,22 @@ final class MenuBarController: NSObject {
     private func showIcon(in button: NSButton) {
         textStack.isHidden = true
         statusItem.length = NSStatusItem.squareLength
+        if state.usageStatus.needsAttention {
+            button.image = NSImage(systemSymbolName: "exclamationmark.circle.fill",
+                                   accessibilityDescription: state.usageStatus.message)
+            button.contentTintColor = .systemRed
+            button.imagePosition = .imageOnly
+            button.title = ""
+            button.attributedTitle = NSAttributedString(string: "")
+            return
+        }
+        button.contentTintColor = nil
         let image = NSImage(named: "MenuBarIcon")
         image?.isTemplate = true
         button.image = image
         button.imagePosition = .imageOnly
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
-    }
-
-    private func appendPercent(_ percent: Double?, to title: NSMutableAttributedString) {
-        let color: NSColor
-        if let percent {
-            let settings = UsageColorSettingsStore.current
-            let level = UsageLevel.resolve(percent)
-            color = NSColor(name: nil) { appearance in
-                let paletteAppearance: UsagePaletteAppearance =
-                    appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-                    ? .dark
-                    : .light
-                let value = settings.resolvedColor(
-                    for: level,
-                    appearance: paletteAppearance
-                )
-                return NSColor(
-                    calibratedHue: value.hue,
-                    saturation: value.saturation,
-                    brightness: value.brightness,
-                    alpha: 1
-                )
-            }
-        } else {
-            color = .secondaryLabelColor
-        }
-        title.append(NSAttributedString(
-            string: UsagePercentFormatter.format(percent),
-            attributes: baseAttributes(color: color)
-        ))
-    }
-
-    private func baseAttributes(color: NSColor) -> [NSAttributedString.Key: Any] {
-        [
-            .font: NSFont.monospacedDigitSystemFont(
-                ofSize: CGFloat(state.menuBarTextSize.pointSize),
-                weight: .semibold
-            ),
-            .foregroundColor: color
-        ]
     }
 
     private func updatedAtAttributes() -> [NSAttributedString.Key: Any] {
@@ -210,5 +210,72 @@ final class MenuBarController: NSObject {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+}
+
+// Shared with the settings preview so its spacing matches the status item.
+enum MenuBarPresentation {
+    static func title(
+        windows: [UsageWindow],
+        showsPercentages: Bool,
+        showsProgress: Bool,
+        textSize: MenuBarTextSize
+    ) -> NSAttributedString {
+        let title = NSMutableAttributedString()
+        guard showsPercentages || showsProgress else { return title }
+        let font = NSFont.monospacedDigitSystemFont(ofSize: CGFloat(textSize.pointSize), weight: .semibold)
+        for (index, window) in windows.enumerated() {
+            if index > 0 {
+                title.append(NSAttributedString(string: " / ", attributes: [
+                    .font: font, .foregroundColor: NSColor.secondaryLabelColor
+                ]))
+            }
+            let color = metricColor(window.remainingPercent)
+            if showsProgress {
+                let width: CGFloat = windows.count == 1 ? 32 : 16
+                let attachment = NSTextAttachment()
+                attachment.image = NSImage(size: NSSize(width: width, height: 5), flipped: false) { rect in
+                    NSColor.labelColor.withAlphaComponent(0.18).setFill()
+                    let track = NSBezierPath(roundedRect: rect, xRadius: 2.5, yRadius: 2.5)
+                    track.fill()
+                    let fraction = CGFloat(window.remainingPercent / 100)
+                    if fraction > 0 {
+                        NSGraphicsContext.saveGraphicsState()
+                        track.addClip()
+                        color.setFill()
+                        NSBezierPath(rect: NSRect(
+                            x: rect.minX, y: rect.minY,
+                            width: rect.width * fraction, height: rect.height
+                        )).fill()
+                        NSGraphicsContext.restoreGraphicsState()
+                    }
+                    return true
+                }
+                attachment.bounds = NSRect(x: 0, y: (font.capHeight - 5) / 2, width: width, height: 5)
+                let meter = NSMutableAttributedString(attachment: attachment)
+                meter.addAttribute(.font, value: font, range: NSRange(location: 0, length: meter.length))
+                title.append(meter)
+            }
+            if showsPercentages {
+                let prefix = showsProgress ? " " : ""
+                title.append(NSAttributedString(
+                    string: prefix + UsagePercentFormatter.format(window.remainingPercent),
+                    attributes: [.font: font, .foregroundColor: color]
+                ))
+            }
+        }
+        return title
+    }
+
+    private static func metricColor(_ percent: Double) -> NSColor {
+        let settings = UsageColorSettingsStore.current
+        let level = UsageLevel.resolve(percent)
+        return NSColor(name: nil) { appearance in
+            let paletteAppearance: UsagePaletteAppearance =
+                appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? .dark : .light
+            let value = settings.resolvedColor(for: level, appearance: paletteAppearance)
+            return NSColor(calibratedHue: value.hue, saturation: value.saturation,
+                           brightness: value.brightness, alpha: 1)
+        }
     }
 }

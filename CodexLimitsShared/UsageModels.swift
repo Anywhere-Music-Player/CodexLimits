@@ -7,6 +7,7 @@ enum AppConfiguration {
     static let refreshIntervalKey = "usage_refresh_interval_minutes"
     static let menuBarItemVisibleKey = "menu_bar_item_visible"
     static let menuBarShowsPercentagesKey = "menu_bar_shows_percentages"
+    static let menuBarShowsProgressKey = "menu_bar_shows_progress"
     static let menuBarTextSizeKey = "menu_bar_text_size"
     static let widgetLayoutStyleKey = "widget_layout_style"
     static let usageColorSettingsKey = "usage_color_settings_v1"
@@ -44,6 +45,38 @@ struct UsageSnapshot: Codable, Equatable {
     let fetchedAt: Date
     let primaryWindow: UsageWindow?
     let secondaryWindow: UsageWindow?
+}
+
+enum UsageStatus: String, Codable {
+    case ready
+    case signedOut
+    case failed
+
+    var needsAttention: Bool { self != .ready }
+
+    var message: String? {
+        switch self {
+        case .ready: return nil
+        case .signedOut: return String(localized: "Sign in required")
+        case .failed: return String(localized: "Refresh failed")
+        }
+    }
+}
+
+enum UsageStatusStore {
+    private static let key = "usage_status_v1"
+
+    static func load(hasSnapshot: Bool, defaults: UserDefaults? = AppGroupDefaults.shared) -> UsageStatus {
+        guard let value = defaults?.string(forKey: key),
+              let status = UsageStatus(rawValue: value) else {
+            return hasSnapshot ? .ready : .signedOut
+        }
+        return status
+    }
+
+    static func save(_ status: UsageStatus, defaults: UserDefaults? = AppGroupDefaults.shared) {
+        defaults?.set(status.rawValue, forKey: key)
+    }
 }
 
 enum UsageSnapshotStore {
@@ -124,6 +157,16 @@ enum MenuBarSettings {
         return defaults.bool(forKey: AppConfiguration.menuBarShowsPercentagesKey)
     }
 
+    static var showsProgress: Bool {
+        guard let defaults = AppGroupDefaults.shared,
+              defaults.object(forKey: AppConfiguration.menuBarShowsProgressKey) != nil else { return true }
+        return defaults.bool(forKey: AppConfiguration.menuBarShowsProgressKey)
+    }
+
+    static func saveShowsProgress(_ value: Bool) {
+        AppGroupDefaults.shared?.set(value, forKey: AppConfiguration.menuBarShowsProgressKey)
+    }
+
     static var textSize: MenuBarTextSize {
         guard let value = AppGroupDefaults.shared?.string(forKey: AppConfiguration.menuBarTextSizeKey),
               let size = MenuBarTextSize(rawValue: value) else {
@@ -148,13 +191,15 @@ enum MenuBarSettings {
 enum WidgetLayoutStyle: String, CaseIterable, Identifiable {
     case themeOne
     case themeTwo
+    case ring
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .themeOne: return "Theme 1"
-        case .themeTwo: return "Theme 2"
+        case .themeOne: return String(localized: "Classic")
+        case .themeTwo: return String(localized: "Segments")
+        case .ring: return String(localized: "Ring")
         }
     }
 }
@@ -384,5 +429,19 @@ enum UsagePercentFormatter {
     static func format(_ percent: Double?) -> String {
         guard let percent else { return "--%" }
         return String(format: "%.0f%%", max(0, min(100, percent)))
+    }
+}
+
+// The timeline entry date makes countdowns deterministic in widgets and previews.
+enum ResetCountdown {
+    static func text(resetAt: Date, relativeTo date: Date) -> String {
+        let interval = resetAt.timeIntervalSince(date)
+        guard interval > 0 else { return String(localized: "Reset due") }
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = interval >= 86400 ? [.day, .hour] : interval >= 3600 ? [.hour, .minute] : [.minute]
+        formatter.unitsStyle = .abbreviated
+        formatter.maximumUnitCount = 2
+        let duration = formatter.string(from: max(60, interval)) ?? ""
+        return String(format: String(localized: "In %@"), duration)
     }
 }

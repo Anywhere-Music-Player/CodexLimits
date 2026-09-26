@@ -10,6 +10,7 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     private static let loginStateKey = "CodexLimits.isLoggedIn"
 
     @Published private(set) var snapshot: UsageSnapshot?
+    @Published private(set) var usageStatus: UsageStatus
     @Published private(set) var statusMessage: String
     @Published private(set) var isRefreshing = false
     @Published private(set) var isLoggedIn = false
@@ -17,6 +18,7 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     @Published private(set) var popupWebView: WKWebView?
     @Published private(set) var isMenuBarItemVisible: Bool
     @Published private(set) var showsPercentagesInMenuBar: Bool
+    @Published private(set) var showsProgressInMenuBar: Bool
     @Published private(set) var menuBarTextSize: MenuBarTextSize
     @Published private(set) var widgetLayoutStyle: WidgetLayoutStyle
 
@@ -24,9 +26,13 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     private var refreshTask: Task<Void, Never>?
     private var snapshotSyncTask: Task<Void, Never>?
 
-    override init() {
+    init(startsServices: Bool = true) {
         let storedSnapshot = UsageSnapshotStore.load()
         self.snapshot = storedSnapshot
+        let loggedIn = (UserDefaults.standard.object(forKey: Self.loginStateKey) as? Bool)
+            ?? (storedSnapshot != nil)
+        self.usageStatus = loggedIn
+            ? UsageStatusStore.load(hasSnapshot: storedSnapshot != nil) : .signedOut
         self.statusMessage = storedSnapshot == nil
             ? String(localized: "content.notFetched")
             : String(localized: "status.updated")
@@ -34,10 +40,13 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
             ?? (storedSnapshot != nil)
         self.isMenuBarItemVisible = MenuBarSettings.isItemVisible
         self.showsPercentagesInMenuBar = MenuBarSettings.showsPercentages
+        self.showsProgressInMenuBar = MenuBarSettings.showsProgress
         self.menuBarTextSize = MenuBarSettings.textSize
         self.widgetLayoutStyle = WidgetLayoutStyleSettings.current
         super.init()
 
+        guard startsServices else { return }
+        UsageStatusStore.save(usageStatus)
         NSWorkspace.shared.notificationCenter.addObserver(
             self,
             selector: #selector(handleSystemWake),
@@ -67,16 +76,26 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
             snapshot = newSnapshot
             updateLoginState(true)
             statusMessage = String(localized: "status.updated")
-            WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
+            updateUsageStatus(.ready)
             if !wasLoggedIn {
                 discardLoginWebViews()
             }
         } catch CodexUsageFetcherError.signedOut {
             updateLoginState(false)
-            statusMessage = String(localized: "content.notFetched")
+            statusMessage = String(localized: "Sign in required")
+            updateUsageStatus(.signedOut)
+        } catch is CancellationError {
+            return
         } catch {
             statusMessage = error.localizedDescription
+            updateUsageStatus(isLoggedIn ? .failed : .signedOut)
         }
+    }
+
+    private func updateUsageStatus(_ status: UsageStatus) {
+        usageStatus = status
+        UsageStatusStore.save(status)
+        WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
     }
 
     func updateRefreshInterval(_ minutes: Int) {
@@ -93,6 +112,11 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     func updateMenuBarItemVisibility(_ isVisible: Bool) {
         MenuBarSettings.saveItemVisibility(isVisible)
         isMenuBarItemVisible = isVisible
+    }
+
+    func updateShowsProgressInMenuBar(_ value: Bool) {
+        MenuBarSettings.saveShowsProgress(value)
+        showsProgressInMenuBar = value
     }
 
     func updateMenuBarTextSize(_ size: MenuBarTextSize) {

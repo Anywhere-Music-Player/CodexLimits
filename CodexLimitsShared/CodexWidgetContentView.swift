@@ -107,502 +107,222 @@ struct CodexWidgetContentView: View {
 
     let snapshot: UsageSnapshot?
     let family: CodexWidgetFamily
+    var style: WidgetLayoutStyle = WidgetLayoutStyleSettings.current
+    var date: Date = Date()
+    var usageStatus: UsageStatus = .ready
 
     private var theme: WidgetTheme {
-        WidgetTheme.resolve(
-            colorScheme: colorScheme,
-            renderingMode: renderingMode
-        )
+        WidgetTheme.resolve(colorScheme: colorScheme, renderingMode: renderingMode)
     }
 
-    private var layoutStyle: WidgetLayoutStyle {
-        WidgetLayoutStyleSettings.current
+    private var windows: [UsageWindow] {
+        [snapshot?.primaryWindow, snapshot?.secondaryWindow].compactMap { $0 }
     }
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: colorScheme == .dark
-                    ? [theme.backgroundTop, theme.backgroundBottom]
-                    : [Color.white, Color(white: 0.965)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-
-            Group {
-                if layoutStyle == .themeTwo {
-                    themeTwoContent
-                } else {
-                    switch family {
-                    case .small:
-                        smallContent
-                    case .medium:
-                        mediumContent
-                    }
-                }
-            }
-        }
-        .foregroundStyle(theme.text)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    @ViewBuilder
-    private var themeTwoContent: some View {
-        switch family {
-        case .small:
-            themeTwoSmallContent
-        case .medium:
-            themeTwoMediumContent
-        }
-    }
-
-    private var themeTwoSmallContent: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            header
-
-            VStack(spacing: 12) {
-                themeTwoCompactMeter(
-                    title: "5-Hour Limit",
-                    window: snapshot?.primaryWindow,
-                    segments: 12
-                )
-                themeTwoCompactMeter(
-                    title: "Weekly Limit",
-                    window: snapshot?.secondaryWindow,
-                    segments: 12
-                )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var themeTwoMediumContent: some View {
         VStack(alignment: .leading, spacing: 8) {
             header
-
-            VStack(spacing: 16) {
-                themeTwoCompactMeter(
-                    title: "5-Hour Limit",
-                    window: snapshot?.primaryWindow,
-                    segments: 20
-                )
-                themeTwoCompactMeter(
-                    title: "Weekly Limit",
-                    window: snapshot?.secondaryWindow,
-                    segments: 20
-                )
-            }
-            .frame(maxHeight: .infinity)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private func themeTwoFeaturedSmall(title: String, window: UsageWindow) -> some View {
-        let remainingPercent = window.remainingPercent
-        let metricColor = theme.metricColor(for: remainingPercent)
-
-        return VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                .tracking(0.5)
-                .foregroundStyle(theme.secondaryText)
-                .lineLimit(1)
-
-            Text(UsagePercentFormatter.format(remainingPercent))
-                .font(.system(size: 34, weight: .heavy, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(metricColor)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .widgetAccentable()
-
-            if let reset = resetText(for: window) {
-                Label("Resets \(reset)", systemImage: "clock")
-                    .font(.system(size: 7, weight: .bold, design: .rounded))
-                    .foregroundStyle(theme.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-
-            segmentedProgress(remainingPercent, color: metricColor, segments: 12)
-                .frame(height: 7)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-    }
-
-    private func themeTwoFeaturedMedium(title: String, window: UsageWindow) -> some View {
-        let remainingPercent = window.remainingPercent
-        let metricColor = theme.metricColor(for: remainingPercent)
-
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 14) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .tracking(0.8)
+            if windows.isEmpty {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("No usage data").font(.headline)
+                    Text(usageStatus == .failed ? String(localized: "Refresh failed") : String(localized: "Open CodexLimits to sign in")).font(.caption)
                         .foregroundStyle(theme.secondaryText)
-                        .lineLimit(1)
-
-                    Text(UsagePercentFormatter.format(remainingPercent))
-                        .font(.system(size: 42, weight: .heavy, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(metricColor)
-                        .widgetAccentable()
                 }
-
-                Spacer(minLength: 8)
-
-                if let reset = resetText(for: window) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("RESETS", systemImage: "clock")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
-                            .tracking(0.7)
-                            .foregroundStyle(metricColor)
-
-                        Text(reset)
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            } else if windows.count == 1, let window = windows.first {
+                featured(window)
+                    .opacity(usageStatus.needsAttention ? 0.5 : 1)
+            } else {
+                VStack(spacing: family == .small ? 8 : 10) {
+                    ForEach(windows, id: \.kind) { window in
+                        compact(window)
                     }
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 9)
-                    .frame(minWidth: 142, alignment: .leading)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(colorScheme == .dark ? theme.panelTop : Color.white)
-                    )
                 }
-            }
-
-            segmentedProgress(remainingPercent, color: metricColor, segments: 20)
-                .frame(height: 9)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-    }
-
-    private func themeTwoCompactMeter(
-        title: String,
-        window: UsageWindow?,
-        segments: Int
-    ) -> some View {
-        let remainingPercent = window?.remainingPercent
-        let metricColor = remainingPercent.map(theme.metricColor) ?? theme.secondaryText
-
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(title)
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .tracking(0.5)
-                    .foregroundStyle(theme.secondaryText)
-                    .lineLimit(1)
-
-                Spacer(minLength: 4)
-
-                Text(UsagePercentFormatter.format(remainingPercent))
-                    .font(.system(size: family == .small ? 19 : 23, weight: .heavy, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(metricColor)
-                    .widgetAccentable()
-            }
-
-            if let window, let reset = resetText(for: window) {
-                Text("Resets \(reset)")
-                    .font(.system(size: 7, weight: .semibold, design: .rounded))
-                    .foregroundStyle(theme.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-
-            segmentedProgress(remainingPercent ?? 0, color: metricColor, segments: segments)
-                .frame(height: family == .small ? 5 : 6)
-        }
-    }
-
-    private var smallContent: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            header
-
-            panel(padding: 6, fillsHeight: true) {
-                VStack(spacing: 12) {
-                    compactMeter(title: "5-Hour Limit", window: snapshot?.primaryWindow)
-                    compactMeter(title: "Weekly Limit", window: snapshot?.secondaryWindow)
-                }
+                .frame(maxHeight: .infinity)
+                .opacity(usageStatus.needsAttention ? 0.5 : 1)
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, family == .small ? 14 : 18)
         .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private var mediumContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-
-            panel(padding: 8, fillsHeight: true) {
-                VStack(spacing: 16) {
-                    wideMeter(title: "5-Hour Limit", window: snapshot?.primaryWindow)
-                    wideMeter(title: "Weekly Limit", window: snapshot?.secondaryWindow)
-                }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .foregroundStyle(theme.text)
+        .background {
+            if !theme.usesSystemTint {
+                LinearGradient(
+                    colors: colorScheme == .dark
+                        ? [theme.backgroundTop, theme.backgroundBottom]
+                        : [Color.white, Color(white: 0.97)],
+                    startPoint: .topLeading, endPoint: .bottomTrailing
+                )
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("Codex")
-                .font(.system(size: 17, weight: .heavy, design: .rounded))
-
-            Spacer(minLength: 8)
-
-            if let fetchedAt = snapshot?.fetchedAt {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Codex").font(.system(size: 17, weight: .bold, design: .rounded))
+            Spacer(minLength: 4)
+            if let message = usageStatus.message {
+                Text("! \(message)")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(theme.usesSystemTint ? theme.text : Color.red)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
+                    .accessibilityLabel(message)
+            } else if let fetchedAt = snapshot?.fetchedAt {
                 Text(fetchedAt.formatted(date: .omitted, time: .shortened))
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .monospacedDigit()
+                    .font(.system(size: 10, weight: .medium)).monospacedDigit()
                     .foregroundStyle(theme.secondaryText)
-                    .lineLimit(1)
             }
         }
     }
 
-    private func compactMeter(title: String, window: UsageWindow?) -> some View {
-        let remainingPercent = window?.remainingPercent
-        let metricColor = remainingPercent.map(theme.metricColor) ?? theme.secondaryText
+    private func title(_ window: UsageWindow) -> String {
+        window.kind == .primary ? String(localized: "5-Hour Limit") : String(localized: "Weekly Limit")
+    }
 
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .center, spacing: 6) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(.system(size: 7, weight: .bold, design: .monospaced))
-                        .tracking(0.5)
-                        .foregroundStyle(theme.secondaryText)
-                        .lineLimit(1)
+    private func percentage(_ window: UsageWindow, size: CGFloat) -> some View {
+        Text(UsagePercentFormatter.format(window.remainingPercent))
+            .font(.system(size: size, weight: .bold, design: .rounded))
+            .monospacedDigit()
+            .foregroundStyle(theme.metricColor(for: window.remainingPercent))
+            .lineLimit(1).minimumScaleFactor(0.8)
+            .widgetAccentable()
+    }
 
-                    if let window, let reset = resetText(for: window) {
-                        Text("Resets \(reset)")
-                            .font(.system(size: 7, weight: .semibold, design: .rounded))
-                            .foregroundStyle(theme.secondaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
+    private func caption(_ window: UsageWindow) -> some View {
+        Text(title(window))
+            .font(.system(size: 11, weight: .semibold))
+            .foregroundStyle(theme.secondaryText)
+            .lineLimit(1).minimumScaleFactor(0.8)
+    }
+
+    @ViewBuilder
+    private func featured(_ window: UsageWindow) -> some View {
+        if family == .medium {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 18) {
+                    if style == .ring {
+                        ring(window, diameter: 94)
+                        VStack(alignment: .leading, spacing: 9) {
+                            caption(window)
+                            reset(window)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        VStack(alignment: .leading, spacing: 4) {
+                            caption(window)
+                            percentage(window, size: 42)
+                        }
+                        Spacer(minLength: 0)
+                        reset(window)
+                            .padding(10)
+                            .background(theme.track.opacity(0.4), in: RoundedRectangle(cornerRadius: 12))
                     }
                 }
-
-                Spacer(minLength: 4)
-
-                Text(UsagePercentFormatter.format(remainingPercent))
-                    .font(.system(size: 20, weight: .heavy, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(metricColor)
-                    .lineLimit(1)
-                    .widgetAccentable()
+                .frame(maxHeight: .infinity)
+                if style != .ring { meter(window).frame(height: style == .themeTwo ? 18 : 7) }
             }
-
-            progressBar(remainingPercent ?? 0, color: metricColor)
-                .frame(height: 5)
-        }
-    }
-
-    private func featuredSmall(title: String, window: UsageWindow) -> some View {
-        let remainingPercent = window.remainingPercent
-        let metricColor = theme.metricColor(for: remainingPercent)
-
-        return panel(padding: 9, fillsHeight: true) {
-            VStack(alignment: .leading, spacing: 7) {
-                Text(title)
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
-                    .tracking(0.5)
-                    .foregroundStyle(theme.secondaryText)
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
-
-                Text(UsagePercentFormatter.format(remainingPercent))
-                    .font(.system(size: 32, weight: .heavy, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(metricColor)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .widgetAccentable()
-
-                progressBar(remainingPercent, color: metricColor)
-                    .frame(height: 7)
-
-                if let reset = resetText(for: window) {
-                    Text("Resets \(reset)")
-                        .font(.system(size: 8, weight: .semibold, design: .rounded))
-                        .foregroundStyle(theme.secondaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                caption(window)
+                if style == .ring {
+                    ring(window, diameter: 62)
+                        .frame(maxWidth: .infinity)
+                } else {
+                    percentage(window, size: 36)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    meter(window).frame(height: style == .themeTwo ? 12 : 5)
                 }
+                reset(window)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 
-    private func wideMeter(title: String, window: UsageWindow?) -> some View {
-        let remainingPercent = window?.remainingPercent
-        let metricColor = remainingPercent.map(theme.metricColor) ?? theme.secondaryText
-
-        return VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .center, spacing: 10) {
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
-                        .tracking(0.7)
-                        .foregroundStyle(theme.secondaryText)
-
-                    if let window, let reset = resetText(for: window) {
-                        Text("Resets \(reset)")
-                            .font(.system(size: 8, weight: .semibold, design: .rounded))
-                            .foregroundStyle(theme.secondaryText)
-                            .lineLimit(1)
+    private func compact(_ window: UsageWindow) -> some View {
+        HStack(spacing: 10) {
+            if style == .ring { ring(window, diameter: family == .small ? 40 : 48) }
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    caption(window)
+                    if style != .ring {
+                        Spacer(minLength: 3)
+                        percentage(window, size: family == .small ? 19 : 23)
                     }
                 }
-
-                Spacer()
-
-                Text(UsagePercentFormatter.format(remainingPercent))
-                    .font(.system(size: 25, weight: .heavy, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(metricColor)
-                    .widgetAccentable()
+                if family == .medium {
+                    reset(window, compact: true)
+                } else if let resetAt = window.resetAt {
+                    Text(ResetCountdown.text(resetAt: resetAt, relativeTo: date))
+                        .font(.system(size: 9)).foregroundStyle(theme.secondaryText)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                }
+                if style != .ring { meter(window).frame(height: 5) }
             }
-
-            progressBar(remainingPercent ?? 0, color: metricColor)
-                .frame(height: 6)
         }
     }
 
-    private func featuredMedium(title: String, window: UsageWindow) -> some View {
-        let remainingPercent = window.remainingPercent
-        let metricColor = theme.metricColor(for: remainingPercent)
+    @ViewBuilder
+    private func reset(_ window: UsageWindow, compact: Bool = false) -> some View {
+        if let resetAt = window.resetAt {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Resets \(resetAt.formatted(.dateTime.month(.abbreviated).day().hour().minute()))")
+                    .font(.system(size: family == .small || compact ? 9 : 11, weight: .medium))
+                    .lineLimit(1).minimumScaleFactor(0.8)
+                Text(ResetCountdown.text(resetAt: resetAt, relativeTo: date))
+                    .font(.system(size: family == .small || compact ? 9 : 11, weight: .semibold))
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(theme.secondaryText)
+        }
+    }
 
-        return panel(padding: 10) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .bottom, spacing: 14) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(title)
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
-                            .tracking(1)
-                            .foregroundStyle(theme.secondaryText)
+    private func ring(_ window: UsageWindow, diameter: CGFloat) -> some View {
+        ZStack {
+            Circle().stroke(theme.track, lineWidth: diameter > 70 ? 8 : 5)
+            Circle().trim(from: 0, to: window.remainingPercent / 100)
+                .stroke(theme.metricColor(for: window.remainingPercent), style: StrokeStyle(
+                    lineWidth: diameter > 70 ? 8 : 5, lineCap: .round
+                ))
+                .rotationEffect(.degrees(-90)).widgetAccentable()
+            percentage(window, size: diameter > 70 ? 27 : diameter > 50 ? 20 : 11)
+                .frame(width: diameter - 18)
+        }
+        .padding(4)
+        .frame(width: diameter, height: diameter)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title(window))
+        .accessibilityValue(UsagePercentFormatter.format(window.remainingPercent))
+    }
 
-                        Text(UsagePercentFormatter.format(remainingPercent))
-                            .font(.system(size: 42, weight: .heavy, design: .rounded))
-                            .monospacedDigit()
-                            .foregroundStyle(metricColor)
-                            .widgetAccentable()
-                    }
-
-                    Spacer()
-
-                    if let reset = resetText(for: window) {
-                        VStack(alignment: .trailing, spacing: 3) {
-                            Text("RESETS")
-                                .font(.system(size: 8, weight: .bold, design: .monospaced))
-                                .tracking(0.8)
-                                .foregroundStyle(theme.secondaryText)
-                            Text(reset)
-                                .font(.system(size: 13, weight: .bold, design: .rounded))
-                                .monospacedDigit()
-                                .multilineTextAlignment(.trailing)
+    private func meter(_ window: UsageWindow) -> some View {
+        GeometryReader { geometry in
+            let count = family == .small ? 12 : 24
+            let gap: CGFloat = 3
+            let segmentWidth = max(0, (geometry.size.width - CGFloat(count - 1) * gap) / CGFloat(count))
+            ZStack(alignment: .leading) {
+                if style == .themeTwo {
+                    HStack(spacing: gap) {
+                        ForEach(0..<count, id: \.self) { index in
+                            let fraction = max(0, min(1, window.remainingPercent / 100 * Double(count) - Double(index)))
+                            Capsule().fill(theme.track)
+                                .overlay(alignment: .leading) {
+                                    Rectangle().fill(theme.metricColor(for: window.remainingPercent))
+                                        .frame(width: segmentWidth * fraction).widgetAccentable()
+                                }
+                                .clipShape(Capsule())
                         }
                     }
+                } else {
+                    Capsule().fill(theme.track)
+                    Capsule().fill(theme.metricColor(for: window.remainingPercent))
+                        .frame(width: geometry.size.width * window.remainingPercent / 100)
+                        .widgetAccentable()
                 }
-
-                progressBar(remainingPercent, color: metricColor)
-                    .frame(height: 8)
             }
         }
-    }
-
-    private var noDataView: some View {
-        panel(padding: 12) {
-            VStack(alignment: .leading, spacing: 5) {
-                Image(systemName: "chart.bar.xaxis")
-                    .foregroundStyle(theme.secondaryText)
-                Text("No usage data")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                Text("Open CodexLimits to sign in")
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(theme.secondaryText)
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        }
-    }
-
-    private func panel<Content: View>(
-        padding: CGFloat,
-        fillsHeight: Bool = false,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        content()
-            .padding(padding)
-            .frame(
-                maxWidth: .infinity,
-                maxHeight: fillsHeight ? .infinity : nil,
-                alignment: .leading
-            )
-            .background(
-                RoundedRectangle(cornerRadius: 17, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: colorScheme == .dark
-                                ? [theme.panelTop, theme.panelBottom]
-                                : [Color.white, Color(white: 0.97)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-            )
-    }
-
-    private func progressBar(_ remainingPercent: Double, color: Color) -> some View {
-        let normalized = CGFloat(max(0, min(100, remainingPercent)) / 100)
-
-        return GeometryReader { geometry in
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(theme.track)
-                Capsule()
-                    .fill(color)
-                    .frame(width: geometry.size.width * normalized)
-                    .widgetAccentable()
-            }
-        }
-    }
-
-    private func segmentedProgress(
-        _ remainingPercent: Double,
-        color: Color,
-        segments: Int
-    ) -> some View {
-        let normalized = max(0, min(100, remainingPercent)) / 100
-        let activeSegments = normalized == 0
-            ? 0
-            : min(segments, Int(ceil(normalized * Double(segments))))
-
-        return HStack(spacing: 3) {
-            ForEach(0..<segments, id: \.self) { index in
-                Capsule()
-                    .fill(index < activeSegments ? color : theme.track)
-                    .widgetAccentable()
-            }
-        }
-    }
-
-    private func resetText(for window: UsageWindow) -> String? {
-        guard let resetAt = window.resetAt else { return nil }
-        if window.limitWindowSeconds >= 24 * 60 * 60 {
-            return resetAt.formatted(
-                .dateTime.month(.abbreviated).day().hour().minute()
-            )
-        }
-        return resetAt.formatted(date: .omitted, time: .shortened)
+        .accessibilityHidden(true)
     }
 }
 
