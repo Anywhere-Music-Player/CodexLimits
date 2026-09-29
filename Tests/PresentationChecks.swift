@@ -11,6 +11,36 @@ struct PresentationChecks {
             precondition(condition(), message)
             checks += 1
         }
+        let session = try CodexUsageSession(object: [
+            "accessToken": "test-token", "account": ["id": "test-account"]
+        ])
+        var request = URLRequest(url: URL(string: "https://chatgpt.com/backend-api/wham/usage")!)
+        session.authorize(&request)
+        check(request.value(forHTTPHeaderField: "Authorization") == "Bearer test-token",
+              "Usage requests must retain session authentication")
+        check(request.value(forHTTPHeaderField: "ChatGPT-Account-Id") == "test-account",
+              "Usage requests must target the authenticated account")
+        let switchedSession = try CodexUsageSession(object: [
+            "access_token": "new-token", "account": ["id": "new-account"]
+        ])
+        switchedSession.authorize(&request)
+        check(request.value(forHTTPHeaderField: "ChatGPT-Account-Id") == "new-account"
+              && request.value(forHTTPHeaderField: "Authorization") == "Bearer new-token",
+              "Switching sessions must replace both account and token")
+        for account: [String: Any] in [[:], ["id": ""], ["id": "  "], ["id": 123]] {
+            do {
+                _ = try CodexUsageSession(object: ["accessToken": "test-token", "account": account])
+                check(false, "Missing account identity must not allow an unscoped usage request")
+            } catch CodexUsageFetcherError.invalidResponse {
+                check(true, "Invalid account identity rejected")
+            }
+        }
+        do {
+            _ = try CodexUsageSession(object: ["account": ["id": "test-account"]])
+            check(false, "Missing token must require sign in")
+        } catch CodexUsageFetcherError.signedOut {
+            check(true, "Missing authentication rejected")
+        }
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let weekly = UsageWindow(kind: .secondary, usedPercent: 90,
                                  resetAt: now.addingTimeInterval(3 * 86400 + 20 * 3600),

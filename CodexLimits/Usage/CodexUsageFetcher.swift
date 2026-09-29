@@ -76,11 +76,36 @@ enum CodexUsageFetcherError: LocalizedError {
     }
 }
 
+struct CodexUsageSession {
+    let accessToken: String
+    let accountID: String
+
+    init(object: [String: Any]) throws {
+        guard let token = (object["accessToken"] ?? object["access_token"]) as? String,
+              !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw CodexUsageFetcherError.signedOut
+        }
+        guard let account = object["account"] as? [String: Any],
+              let id = account["id"] as? String,
+              !id.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            // Never request unscoped usage: it can report a different limit.
+            throw CodexUsageFetcherError.invalidResponse
+        }
+        accessToken = token
+        accountID = id
+    }
+
+    func authorize(_ request: inout URLRequest) {
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(accountID, forHTTPHeaderField: "ChatGPT-Account-Id")
+    }
+}
+
 struct CodexUsageFetcher {
     @MainActor
     func fetch() async throws -> UsageSnapshot {
         let cookies = await websiteCookies()
-        let accessToken = try await fetchAccessToken(using: cookies)
+        let session = try await fetchSession(using: cookies)
 
         guard var components = URLComponents(
             string: "https://chatgpt.com/backend-api/wham/usage"
@@ -95,7 +120,7 @@ struct CodexUsageFetcher {
         }
 
         var request = makeRequest(url: url, cookies: cookies)
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        session.authorize(&request)
         let (data, response) = try await response(for: request)
 
         switch response.statusCode {
@@ -127,7 +152,7 @@ struct CodexUsageFetcher {
         }
     }
 
-    private func fetchAccessToken(using cookies: [HTTPCookie]) async throws -> String {
+    private func fetchSession(using cookies: [HTTPCookie]) async throws -> CodexUsageSession {
         let endpointStrings = [
             "https://chatgpt.com/api/auth/session",
             "https://chatgpt.com/backend-api/auth/session"
@@ -158,11 +183,7 @@ struct CodexUsageFetcher {
                     encounteredTemporaryFailure = true
                     continue
                 }
-                if let token = (object["accessToken"] ?? object["access_token"]) as? String,
-                   !token.isEmpty {
-                    return token
-                }
-                throw CodexUsageFetcherError.signedOut
+                return try CodexUsageSession(object: object)
             case 401, 403:
                 continue
             case 404:
