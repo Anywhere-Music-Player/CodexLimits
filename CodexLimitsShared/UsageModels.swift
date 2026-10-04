@@ -45,6 +45,56 @@ struct UsageSnapshot: Codable, Equatable {
     let fetchedAt: Date
     let primaryWindow: UsageWindow?
     let secondaryWindow: UsageWindow?
+    var resetCredits: UsageResetCredits? = nil
+}
+
+struct UsageResetCredit: Codable, Equatable, Identifiable {
+    let id: String
+    let expiresAt: Date?
+}
+
+struct UsageResetCredits: Codable, Equatable {
+    let availableCount: Int
+    // Nil means the service returned only a count. The detail list can be capped.
+    let credits: [UsageResetCredit]?
+
+    func availableCount(at date: Date) -> Int {
+        let expiredCount = credits?.filter { ($0.expiresAt ?? .distantFuture) <= date }.count ?? 0
+        return max(0, availableCount - expiredCount)
+    }
+
+    func availableCredits(at date: Date) -> [UsageResetCredit] {
+        (credits ?? [])
+            .filter { ($0.expiresAt ?? .distantFuture) > date }
+            .sorted { ($0.expiresAt ?? .distantFuture) < ($1.expiresAt ?? .distantFuture) }
+    }
+}
+
+enum ResetExpiration {
+    static func shortText(
+        for date: Date,
+        locale: Locale = .autoupdatingCurrent,
+        timeZone: TimeZone = .autoupdatingCurrent
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        formatter.setLocalizedDateFormatFromTemplate("dMMMjm")
+        return formatter.string(from: date)
+    }
+
+    static func text(
+        for date: Date,
+        locale: Locale = .autoupdatingCurrent,
+        timeZone: TimeZone = .autoupdatingCurrent
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.timeZone = timeZone
+        // A localized template respects the user's date order and 12/24-hour preference.
+        formatter.setLocalizedDateFormatFromTemplate("EEEE d MMMM yyyy jmmss zzzz")
+        return formatter.string(from: date)
+    }
 }
 
 enum UsageStatus: String, Codable {

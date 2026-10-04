@@ -191,6 +191,7 @@ struct SettingsView: View {
         switch selectedSection ?? .general {
         case .general:
             dashboardHeader
+            resetCreditsPanel
             automationPanel
         case .menuBar:
             menuBarPanel
@@ -332,6 +333,16 @@ struct SettingsView: View {
             }
         }
         .dashboardPanel()
+    }
+
+    private var resetCreditsPanel: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            UsageResetCreditsPanel(
+                resetCredits: state.snapshot?.resetCredits,
+                usageStatus: state.usageStatus,
+                date: context.date
+            )
+        }
     }
 
     private var menuBarPanel: some View {
@@ -870,6 +881,88 @@ private extension View {
                 RoundedRectangle(cornerRadius: 14)
                     .stroke(Color.primary.opacity(0.08), lineWidth: 1)
             }
+    }
+}
+
+struct UsageResetCreditsPanel: View {
+    @Environment(\.locale) private var locale
+    @Environment(\.timeZone) private var timeZone
+    let resetCredits: UsageResetCredits?
+    let usageStatus: UsageStatus
+    let date: Date
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 11) {
+                Image(systemName: "arrow.counterclockwise.circle")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(DashboardTheme.accent)
+                    .frame(width: 28, height: 28)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(DashboardTheme.accent.opacity(0.12))
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Usage limit resets")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text("Expiration dates in your local time")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if usageStatus == .signedOut {
+                Text("Sign in to fetch usage")
+                    .foregroundStyle(.secondary)
+            } else if let resetCredits {
+                let count = resetCredits.availableCount(at: date)
+                let credits = resetCredits.availableCredits(at: date)
+
+                HStack {
+                    Text("Available")
+                    Spacer()
+                    Text(count, format: .number)
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                }
+
+                if usageStatus == .failed {
+                    Label("Refresh failed", systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.red)
+                }
+
+                if !credits.isEmpty {
+                    ForEach(credits) { credit in
+                        Divider()
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Expires")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if let expiresAt = credit.expiresAt {
+                                Text(ResetExpiration.text(for: expiresAt, locale: locale, timeZone: timeZone))
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .textSelection(.enabled)
+                            } else {
+                                Text("Expiration not provided")
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                if count > credits.count {
+                    Text("Some expiration dates are unavailable. Try refreshing.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text("Reset information is unavailable. Try refreshing.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .font(.system(size: 13))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .dashboardPanel()
     }
 }
 

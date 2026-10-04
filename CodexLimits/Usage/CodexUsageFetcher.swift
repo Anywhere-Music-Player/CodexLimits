@@ -15,6 +15,22 @@ struct CodexUsageResponse: Codable {
     }
 
     let rate_limit: RateLimit?
+    let rate_limit_reset_credits: ResetCreditsSummary?
+
+    struct ResetCreditsSummary: Codable {
+        let available_count: Int
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case rate_limit, rate_limit_reset_credits
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rate_limit = try container.decodeIfPresent(RateLimit.self, forKey: .rate_limit)
+        // Reset metadata is optional and must not make the regular usage display fail.
+        rate_limit_reset_credits = try? container.decodeIfPresent(ResetCreditsSummary.self, forKey: .rate_limit_reset_credits)
+    }
 
     func makeSnapshot(fetchedAt: Date) -> UsageSnapshot {
         let windows = [
@@ -32,7 +48,10 @@ struct CodexUsageResponse: Codable {
         return UsageSnapshot(
             fetchedAt: fetchedAt,
             primaryWindow: primary,
-            secondaryWindow: secondary
+            secondaryWindow: secondary,
+            resetCredits: rate_limit_reset_credits.map {
+                UsageResetCredits(availableCount: max(0, $0.available_count), credits: nil)
+            }
         )
     }
 
@@ -50,6 +69,34 @@ struct CodexUsageResponse: Codable {
             resetAt: source.reset_at.map { Date(timeIntervalSince1970: $0) },
             limitWindowSeconds: limitSeconds
         )
+    }
+}
+
+struct CodexResetCreditsResponse: Decodable {
+    struct Credit: Decodable {
+        let id: String
+        let status: String
+        let expires_at: String?
+    }
+
+    let available_count: Int
+    let credits: [Credit]?
+
+    func makeResetCredits() throws -> UsageResetCredits {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let wholeSeconds = ISO8601DateFormatter()
+        let availableCredits = try credits?.filter { $0.status == "available" }.map { credit in
+            var expiresAt: Date?
+            if let timestamp = credit.expires_at {
+                guard let date = fractional.date(from: timestamp) ?? wholeSeconds.date(from: timestamp) else {
+                    throw CodexUsageFetcherError.invalidResponse
+                }
+                expiresAt = date
+            }
+            return UsageResetCredit(id: credit.id, expiresAt: expiresAt)
+        }
+        return UsageResetCredits(availableCount: max(0, available_count), credits: availableCredits)
     }
 }
 
@@ -140,7 +187,30 @@ struct CodexUsageFetcher {
         guard let usage = try? JSONDecoder().decode(CodexUsageResponse.self, from: data) else {
             throw CodexUsageFetcherError.invalidResponse
         }
-        return usage.makeSnapshot(fetchedAt: Date())
+        var snapshot = usage.makeSnapshot(fetchedAt: Date())
+        do {
+            snapshot.resetCredits = try await fetchResetCredits(using: cookies, session: session)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            // Keep the usage response's count if details are temporarily unavailable.
+            // Never carry reset details over from an earlier account or refresh.
+        }
+        return snapshot
+    }
+
+    private func fetchResetCredits(
+        using cookies: [HTTPCookie],
+        session: CodexUsageSession
+    ) async throws -> UsageResetCredits {
+        let url = URL(string: "https://chatgpt.com/backend-api/wham/rate-limit-reset-credits")!
+        var request = makeRequest(url: url, cookies: cookies)
+        session.authorize(&request)
+        let (data, response) = try await response(for: request)
+        guard (200..<300).contains(response.statusCode) else {
+            throw CodexUsageFetcherError.invalidResponse
+        }
+        return try JSONDecoder().decode(CodexResetCreditsResponse.self, from: data).makeResetCredits()
     }
 
     @MainActor

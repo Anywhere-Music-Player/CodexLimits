@@ -25,6 +25,7 @@
 | Adaptive limits | Shows the available 5-hour and weekly limits; weekly-only accounts have no empty 5-hour placeholder. |
 | Desktop widgets | Small and medium widgets in Classic, Segments, and Ring themes. |
 | Reset tracking | Reset dates and localized countdowns, without a redundant remaining label. |
+| Available resets | Available usage limit resets with compact local expiration dates at the top of the menu and full dates in General settings. |
 | Personalization | Usage colors and sidebar settings with theme previews in both sizes and appearances. |
 | Refresh | Choose an interval of 1, 2, 3, or 5 minutes. |
 | Sign-in | Authenticate through an embedded ChatGPT web view. |
@@ -69,6 +70,8 @@ The targets use Xcode's recommended macOS deployment target. Check the resolved 
 
 The app reads Codex usage from `https://chatgpt.com/backend-api/wham/usage` using the authenticated embedded web session. It saves `usage_snapshot.json` in the App Group container so the widget can read the latest snapshot. The menu bar uses live app state.
 
+Available usage limit resets come from `https://chatgpt.com/backend-api/wham/rate-limit-reset-credits` using the same account-scoped session. Expiration dates follow the system locale and local time zone, including daylight saving changes. General settings and menu tooltips show the full timestamp; menu rows use a compact date and time. Missing reset details are marked as unavailable, and known expired resets are excluded from the available count.
+
 The widget provides minute-spaced countdown entries for one hour between timeline reloads. WidgetKit controls actual delivery and may defer updates.
 
 ### Presentation checks
@@ -79,7 +82,7 @@ Run the checks on macOS with Xcode installed:
 Scripts/check-presentation.sh
 ```
 
-They cover weekly-only parsing, menu-bar display modes, reset boundaries, and compatibility with saved themes.
+They cover account-scoped authentication, weekly-only parsing, menu-bar display modes, available reset counts and expiration dates, local time and daylight saving changes, snapshot compatibility, and saved themes.
 
 To also render native settings and widget states without opening the app or starting account requests:
 

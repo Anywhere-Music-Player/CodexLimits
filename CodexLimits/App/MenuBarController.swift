@@ -8,7 +8,7 @@ private final class MenuBarTextStackView: NSStackView {
 }
 
 @MainActor
-final class MenuBarController: NSObject {
+final class MenuBarController: NSObject, NSMenuDelegate {
     private let state: AppState
     private let statusItem: NSStatusItem
     private let percentagesLabel = NSTextField(labelWithString: "")
@@ -91,6 +91,18 @@ final class MenuBarController: NSObject {
 
     private func configureMenu() {
         let menu = NSMenu()
+        menu.delegate = self
+        populateMenu(menu)
+        statusItem.menu = menu
+    }
+
+    private func populateMenu(_ menu: NSMenu) {
+        menu.removeAllItems()
+        MenuBarPresentation.resetCreditsSection(
+            resetCredits: state.snapshot?.resetCredits,
+            usageStatus: state.usageStatus,
+            date: Date()
+        ).forEach { menu.addItem($0) }
         menu.addItem(makeItem(
             String(localized: "content.refreshNow"),
             systemImage: "arrow.clockwise",
@@ -107,7 +119,11 @@ final class MenuBarController: NSObject {
             action: #selector(quit)
         ))
         menu.items.forEach { $0.target = self }
-        statusItem.menu = menu
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // Recalculate on every opening, including credits that expired between refreshes.
+        populateMenu(menu)
     }
 
     private func makeItem(
@@ -215,6 +231,62 @@ final class MenuBarController: NSObject {
 
 // Shared with the settings preview so its spacing matches the status item.
 enum MenuBarPresentation {
+    @MainActor
+    static func resetCreditsSection(
+        resetCredits: UsageResetCredits?,
+        usageStatus: UsageStatus,
+        date: Date,
+        locale: Locale = .autoupdatingCurrent,
+        timeZone: TimeZone = .autoupdatingCurrent
+    ) -> [NSMenuItem] {
+        let item = NSMenuItem(title: String(localized: "Usage limit resets"), action: nil, keyEquivalent: "")
+        item.image = NSImage(systemSymbolName: "arrow.counterclockwise.circle", accessibilityDescription: item.title)
+        item.isEnabled = false
+        var items = [item]
+
+        func addDetail(_ title: String, toolTip: String? = nil) {
+            let detail = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+            detail.isEnabled = false
+            detail.toolTip = toolTip
+            items.append(detail)
+        }
+
+        guard usageStatus != .signedOut else {
+            addDetail(String(localized: "Sign in to fetch usage"))
+            return items + [.separator()]
+        }
+        guard let resetCredits else {
+            addDetail(String(localized: "Reset information is unavailable. Try refreshing."))
+            return items + [.separator()]
+        }
+
+        let count = resetCredits.availableCount(at: date)
+        item.title = String(
+            format: String(localized: "Available resets: %@"),
+            count.formatted(.number.locale(locale))
+        )
+
+        if usageStatus == .failed {
+            addDetail(String(localized: "Refresh failed"))
+        }
+
+        let credits = resetCredits.availableCredits(at: date)
+        for credit in credits {
+            if let expiresAt = credit.expiresAt {
+                addDetail(
+                    ResetExpiration.shortText(for: expiresAt, locale: locale, timeZone: timeZone),
+                    toolTip: ResetExpiration.text(for: expiresAt, locale: locale, timeZone: timeZone)
+                )
+            } else {
+                addDetail(String(localized: "Expiration not provided"))
+            }
+        }
+        if count > credits.count {
+            addDetail(String(localized: "Some expiration dates are unavailable. Try refreshing."))
+        }
+        return items + [.separator()]
+    }
+
     static func title(
         windows: [UsageWindow],
         showsPercentages: Bool,
