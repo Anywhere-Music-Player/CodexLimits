@@ -20,9 +20,11 @@ xcrun swiftc -target "$(uname -m)-apple-macosx14.0" -module-cache-path "${TMPDIR
   CodexLimitsShared/UsageModels.swift \
   CodexLimitsShared/CodexWidgetContentView.swift \
   CodexLimits/App/AppState.swift \
+  CodexLimits/App/LaunchAtLogin.swift \
   CodexLimits/App/MenuBarController.swift \
   CodexLimits/App/SettingsView.swift \
   CodexLimits/App/SettingsWindowController.swift \
   CodexLimits/Usage/CodexUsageFetcher.swift \
+  CodexLimits/Usage/CodexAppServer.swift \
   Tests/PresentationChecks.swift -o "$bundle/Contents/MacOS/checks"
 "$bundle/Contents/MacOS/checks"

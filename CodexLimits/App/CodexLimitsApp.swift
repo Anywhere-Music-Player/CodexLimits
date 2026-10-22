@@ -9,7 +9,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        LaunchAtLogin.shared.enableByDefaultIfNeeded()
         menuBarController = MenuBarController(state: .shared)
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        AppState.shared.shutDown()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

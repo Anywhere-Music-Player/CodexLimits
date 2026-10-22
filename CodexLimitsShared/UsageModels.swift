@@ -130,6 +130,13 @@ enum UsageStatusStore {
 }
 
 enum UsageSnapshotStore {
+    static func clear() throws {
+        guard let url = snapshotURL else { throw CocoaError(.fileNoSuchFile) }
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+    }
+
     static func load() -> UsageSnapshot? {
         guard let url = snapshotURL,
               let data = try? Data(contentsOf: url) else {

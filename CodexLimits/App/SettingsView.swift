@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
-import WebKit
 import WidgetKit
+import ServiceManagement
 
 private enum DashboardTheme {
     static let backgroundTop = adaptive(
@@ -94,8 +94,8 @@ enum SettingsSection: String, CaseIterable, Identifiable {
 struct SettingsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: AppState
+    @ObservedObject private var launchAtLogin = LaunchAtLogin.shared
     @State private var refreshMinutes = RefreshIntervalSettings.currentMinutes
-    @State private var isLoginExpanded = false
     @State var selectedSection: SettingsSection? = .general
     @State private var previewDark = false
     @State private var colorSettings = UsageColorSettingsStore.current
@@ -112,66 +112,15 @@ struct SettingsView: View {
             .navigationTitle("CodexLimits")
             .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
         } detail: {
-            Group {
-                if isLoginExpanded {
-                    loginContent.padding(24)
-                } else {
-                    settingsContent
-                }
-            }
+            settingsContent
             .background(Color(nsColor: .windowBackgroundColor))
             .navigationTitle((selectedSection ?? .general).title)
         }
         .frame(minWidth: 820, minHeight: 560)
-        .onChange(of: selectedSection) { _, _ in
-            if isLoginExpanded {
-                state.closeLoginPage()
-                isLoginExpanded = false
-            }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLogin.refresh()
         }
-        .onChange(of: state.isLoggedIn) { _, isLoggedIn in
-            if isLoggedIn {
-                isLoginExpanded = false
-            }
-        }
-        .onDisappear {
-            state.closeLoginPage()
-        }
-        .sheet(
-            isPresented: Binding(
-                get: { state.popupWebView != nil },
-                set: { isPresented in
-                    if !isPresented { state.closePopup() }
-                }
-            )
-        ) {
-            if let popupWebView = state.popupWebView {
-                ZStack {
-                    DashboardTheme.backgroundBottom.ignoresSafeArea()
-
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("Complete sign in")
-                                .font(.system(size: 16, weight: .bold, design: .rounded))
-                            Spacer()
-                            Button {
-                                state.closePopup()
-                            } label: {
-                                Image(systemName: "xmark")
-                                    .frame(width: 28, height: 28)
-                                    .background(Circle().fill(Color.white.opacity(0.08)))
-                            }
-                            .buttonStyle(.plain)
-                        }
-
-                        CodexWebView(webView: popupWebView)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
-                    .padding(16)
-                }
-                .frame(minWidth: 600, minHeight: 700)
-            }
-        }
+        .onAppear { launchAtLogin.refresh() }
     }
 
     private var settingsContent: some View {
@@ -192,6 +141,7 @@ struct SettingsView: View {
         case .general:
             dashboardHeader
             resetCreditsPanel
+            launchAtLoginPanel
             automationPanel
         case .menuBar:
             menuBarPanel
@@ -302,6 +252,24 @@ struct SettingsView: View {
             return "updated \(fetchedAt.formatted(date: .omitted, time: .shortened))"
         }
         return state.statusMessage.lowercased()
+    }
+
+    private var launchAtLoginPanel: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            settingsToggle("Launch at login", isOn: Binding(
+                get: { launchAtLogin.isEnabled },
+                set: { launchAtLogin.setEnabled($0) }
+            ))
+            if launchAtLogin.status == .requiresApproval {
+                Text("Allow CodexLimits in Login Items to enable automatic launch.")
+                    .foregroundStyle(.secondary)
+                Button("Open Login Items") { SMAppService.openSystemSettingsLoginItems() }
+            }
+            if let error = launchAtLogin.errorMessage {
+                Text(error).foregroundStyle(.red).textSelection(.enabled)
+            }
+        }
+        .dashboardPanel()
     }
 
     private var automationPanel: some View {
@@ -743,111 +711,69 @@ struct SettingsView: View {
     }
 
     private var accountPanel: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill((state.isLoggedIn ? DashboardTheme.accent : DashboardTheme.warning).opacity(0.15))
-                    .frame(width: 38, height: 38)
-                Image(systemName: state.isLoggedIn ? "checkmark" : "person.crop.circle")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundStyle(state.isLoggedIn ? DashboardTheme.accent : DashboardTheme.warning)
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Codex account")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                Text(state.isLoggedIn ? "Signed in" : "Sign in to fetch usage")
-                    .font(.caption)
-                    .foregroundStyle(DashboardTheme.secondaryText)
-            }
-
-            Spacer()
-
-            Button {
-                state.reloadLoginPage()
-                isLoginExpanded = true
-            } label: {
-                Label(
-                    state.isLoggedIn ? "Manage login" : "Sign in",
-                    systemImage: "arrow.up.right"
-                )
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .padding(.horizontal, 14)
-                .frame(height: 34)
-                .background(
-                    Capsule()
-                        .fill(Color.white.opacity(0.08))
-                )
-                .overlay {
-                    Capsule()
-                        .stroke(DashboardTheme.border, lineWidth: 1)
-                }
-            }
-            .buttonStyle(.plain)
-        }
-        .dashboardPanel()
-    }
-
-    private var loginContent: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Codex sign in")
-                        .font(.system(size: 24, weight: .heavy, design: .rounded))
-                    loginStatus
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill((state.isLoggedIn ? DashboardTheme.accent : DashboardTheme.warning).opacity(0.15))
+                        .frame(width: 38, height: 38)
+                    Image(systemName: state.isLoggedIn ? "checkmark" : "person.crop.circle")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(state.isLoggedIn ? DashboardTheme.accent : DashboardTheme.warning)
+                }
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Codex account")
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    Text(state.isLoggedIn ? "Signed in" : "Sign in to fetch usage")
+                        .font(.caption)
+                        .foregroundStyle(DashboardTheme.secondaryText)
                 }
 
                 Spacer()
 
                 Button {
-                    state.reloadLoginPage()
+                    state.beginBrowserSignIn()
                 } label: {
-                    Label("Reload page", systemImage: "arrow.clockwise")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .padding(.horizontal, 14)
-                        .frame(height: 34)
-                        .background(Capsule().fill(Color.white.opacity(0.08)))
-                }
-                .buttonStyle(.plain)
-
-                Button {
-                    state.closeLoginPage()
-                    isLoginExpanded = false
-                } label: {
-                    Label("Back to dashboard", systemImage: "chevron.left")
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .padding(.horizontal, 14)
-                        .frame(height: 34)
-                        .background(Capsule().fill(Color.white.opacity(0.08)))
-                }
-                .buttonStyle(.plain)
-            }
-
-            if let loginWebView = state.loginWebView {
-                CodexWebView(webView: loginWebView)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    Label(
+                        String(localized: "Sign in with browser"),
+                        systemImage: "arrow.up.right"
+                    )
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                    .padding(.horizontal, 14)
+                    .frame(height: 34)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.08))
+                    )
                     .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        Capsule()
                             .stroke(DashboardTheme.border, lineWidth: 1)
                     }
+                }
+                .buttonStyle(.plain)
+                .disabled(state.isSigningIn)
+            }
+            if state.isSigningIn {
+                HStack {
+                    ProgressView().controlSize(.small)
+                    Text("Complete sign in in your browser.")
+                    Spacer()
+                    Button("Cancel") { state.cancelBrowserSignIn() }
+                }
+                .font(.caption)
             } else {
-                ProgressView()
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Text("Sign in with Apple or another method in your browser. Requires ChatGPT or Codex CLI.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if let error = state.browserLoginError {
+                Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+            } else if state.usageStatus == .failed {
+                Text(state.statusMessage).font(.caption).foregroundStyle(.red).textSelection(.enabled)
             }
         }
-    }
-
-    private var loginStatus: some View {
-        HStack(spacing: 7) {
-            Circle()
-                .fill(state.isLoggedIn ? DashboardTheme.accent : DashboardTheme.warning)
-                .frame(width: 7, height: 7)
-            Text(state.isLoggedIn ? "Signed in" : "Authentication required")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
-                .foregroundStyle(DashboardTheme.secondaryText)
-        }
+        .dashboardPanel()
     }
 
     private func sectionHeader(title: String, subtitle: String, symbol: String) -> some View {
@@ -964,16 +890,6 @@ struct UsageResetCreditsPanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .dashboardPanel()
     }
-}
-
-private struct CodexWebView: NSViewRepresentable {
-    let webView: WKWebView
-
-    func makeNSView(context: Context) -> WKWebView {
-        webView
-    }
-
-    func updateNSView(_ nsView: WKWebView, context: Context) {}
 }
 
 private struct MenuBarLabelPreview: NSViewRepresentable {

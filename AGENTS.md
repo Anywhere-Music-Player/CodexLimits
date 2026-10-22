@@ -14,7 +14,7 @@ CodexLimits is a macOS menu bar app and WidgetKit extension that display ChatGPT
 
 ## Structure
 
-- `CodexLimits/`: app entry point, menu bar, settings, web login, and Codex fetcher.
+- `CodexLimits/`: app entry point, menu bar, settings, browser login, and Codex fetcher.
 - `CodexLimitsShared/`: snapshot storage, refresh settings, and shared models.
 - `CodexLimitsWidget/`: the single Codex usage widget.
 
@@ -26,8 +26,8 @@ CodexLimits is a macOS menu bar app and WidgetKit extension that display ChatGPT
 
 ## Data flow
 
-1. The app authenticates through an embedded `WKWebView`.
-2. The app fetches the Codex usage endpoint every configured interval.
+1. The app authenticates in the default browser through the official Codex app-server, using an isolated auth store.
+2. The app reads `account/rateLimits/read` over local stdio every configured interval.
 3. The app stores `usage_snapshot.json` in the App Group container.
 4. The menu bar reads the live app state.
 5. The widget reads the shared snapshot and schedules its next timeline refresh.

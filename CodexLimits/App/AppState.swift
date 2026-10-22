@@ -1,11 +1,10 @@
 import AppKit
 import Combine
 import Foundation
-import WebKit
 import WidgetKit
 
 @MainActor
-final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDelegate {
+final class AppState: NSObject, ObservableObject {
     static let shared = AppState()
     private static let loginStateKey = "CodexLimits.isLoggedIn"
 
@@ -14,15 +13,17 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     @Published private(set) var statusMessage: String
     @Published private(set) var isRefreshing = false
     @Published private(set) var isLoggedIn = false
-    @Published private(set) var loginWebView: WKWebView?
-    @Published private(set) var popupWebView: WKWebView?
+    @Published private(set) var isSigningIn = false
+    @Published private(set) var browserLoginError: String?
     @Published private(set) var isMenuBarItemVisible: Bool
     @Published private(set) var showsPercentagesInMenuBar: Bool
     @Published private(set) var showsProgressInMenuBar: Bool
     @Published private(set) var menuBarTextSize: MenuBarTextSize
     @Published private(set) var widgetLayoutStyle: WidgetLayoutStyle
 
-    private let fetcher = CodexUsageFetcher()
+    private let browserService = CodexAppServer()
+    private var loginTask: Task<Void, Never>?
+    private var refreshGeneration = UUID()
     private var refreshTask: Task<Void, Never>?
     private var snapshotSyncTask: Task<Void, Never>?
 
@@ -62,31 +63,30 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
     }
 
     func refresh() async {
-        guard !isRefreshing else { return }
-
-        let wasLoggedIn = isLoggedIn
+        guard !isRefreshing, !isSigningIn else { return }
+        let generation = refreshGeneration
         isRefreshing = true
         defer {
-            isRefreshing = false
+            if generation == refreshGeneration { isRefreshing = false }
         }
 
         do {
-            let newSnapshot = try await fetcher.fetch()
+            let newSnapshot = try await browserService.fetch()
+            guard generation == refreshGeneration else { return }
             try UsageSnapshotStore.save(newSnapshot)
             snapshot = newSnapshot
             updateLoginState(true)
             statusMessage = String(localized: "status.updated")
             updateUsageStatus(.ready)
-            if !wasLoggedIn {
-                discardLoginWebViews()
-            }
         } catch CodexUsageFetcherError.signedOut {
+            guard generation == refreshGeneration else { return }
             updateLoginState(false)
             statusMessage = String(localized: "Sign in required")
             updateUsageStatus(.signedOut)
         } catch is CancellationError {
             return
         } catch {
+            guard generation == refreshGeneration else { return }
             statusMessage = error.localizedDescription
             updateUsageStatus(isLoggedIn ? .failed : .signedOut)
         }
@@ -135,30 +135,50 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
         UserDefaults.standard.set(isLoggedIn, forKey: Self.loginStateKey)
     }
 
-    func reloadLoginPage() {
-        guard let url = URL(string: "https://chatgpt.com/") else { return }
-        let webView: WKWebView
-        if let existingWebView = loginWebView {
-            webView = existingWebView
-        } else {
-            let configuration = WKWebViewConfiguration()
-            configuration.websiteDataStore = .default()
-            let newWebView = WKWebView(frame: .zero, configuration: configuration)
-            newWebView.navigationDelegate = self
-            newWebView.uiDelegate = self
-            loginWebView = newWebView
-            webView = newWebView
+    func beginBrowserSignIn() {
+        guard !isSigningIn else { return }
+        refreshGeneration = UUID()
+        browserService.stop()
+        isRefreshing = false
+        browserLoginError = nil
+        isSigningIn = true
+        loginTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await browserService.signIn { NSWorkspace.shared.open($0) }
+                try Task.checkCancellation()
+                // A new login can select another account. Never retain the previous account's usage.
+                try UsageSnapshotStore.clear()
+                snapshot = nil
+                updateLoginState(true)
+                updateUsageStatus(.failed)
+                isSigningIn = false
+                loginTask = nil
+                await refresh()
+            } catch is CancellationError {
+                // Cancel is a user action, not an authentication failure.
+                isSigningIn = false
+                loginTask = nil
+            } catch {
+                browserService.stop()
+                browserLoginError = error.localizedDescription
+                isSigningIn = false
+                loginTask = nil
+            }
         }
-        let request = URLRequest(
-            url: url,
-            cachePolicy: .reloadIgnoringLocalCacheData,
-            timeoutInterval: 30
-        )
-        webView.load(request)
     }
 
-    func closeLoginPage() {
-        discardLoginWebViews()
+    func cancelBrowserSignIn() {
+        guard isSigningIn else { return }
+        loginTask?.cancel()
+        browserService.stop(error: CancellationError())
+    }
+
+    func shutDown() {
+        loginTask?.cancel()
+        refreshTask?.cancel()
+        snapshotSyncTask?.cancel()
+        browserService.stop()
     }
 
     func startAutoRefresh() {
@@ -199,58 +219,5 @@ final class AppState: NSObject, ObservableObject, WKNavigationDelegate, WKUIDele
             try? await Task.sleep(for: .seconds(2))
             WidgetCenter.shared.reloadTimelines(ofKind: AppConfiguration.widgetKind)
         }
-    }
-
-    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        guard webView === loginWebView || webView === popupWebView else { return }
-        Task { await refresh() }
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        didFail navigation: WKNavigation!,
-        withError error: Error
-    ) {
-        statusMessage = error.localizedDescription
-    }
-
-    func webView(
-        _ webView: WKWebView,
-        createWebViewWith configuration: WKWebViewConfiguration,
-        for navigationAction: WKNavigationAction,
-        windowFeatures: WKWindowFeatures
-    ) -> WKWebView? {
-        guard navigationAction.targetFrame == nil else { return nil }
-
-        let popup = WKWebView(frame: .zero, configuration: configuration)
-        popup.navigationDelegate = self
-        popup.uiDelegate = self
-        popupWebView = popup
-        return popup
-    }
-
-    func webViewDidClose(_ webView: WKWebView) {
-        guard webView === popupWebView else { return }
-        closePopup()
-    }
-
-    func closePopup() {
-        popupWebView?.navigationDelegate = nil
-        popupWebView?.uiDelegate = nil
-        popupWebView?.stopLoading()
-        popupWebView = nil
-        Task { await refresh() }
-    }
-
-    private func discardLoginWebViews() {
-        loginWebView?.navigationDelegate = nil
-        loginWebView?.uiDelegate = nil
-        loginWebView?.stopLoading()
-        loginWebView = nil
-
-        popupWebView?.navigationDelegate = nil
-        popupWebView?.uiDelegate = nil
-        popupWebView?.stopLoading()
-        popupWebView = nil
     }
 }
