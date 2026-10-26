@@ -1,19 +1,10 @@
 import AppKit
 import Combine
 
-private final class MenuBarTextStackView: NSStackView {
-    override func hitTest(_ point: NSPoint) -> NSView? {
-        nil
-    }
-}
-
 @MainActor
 final class MenuBarController: NSObject, NSMenuDelegate {
     private let state: AppState
     private let statusItem: NSStatusItem
-    private let percentagesLabel = NSTextField(labelWithString: "")
-    private let updatedAtLabel = NSTextField(labelWithString: "")
-    private let textStack = MenuBarTextStackView()
     private var cancellables: Set<AnyCancellable> = []
 
     init(state: AppState) {
@@ -21,7 +12,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
         statusItem.isVisible = state.isMenuBarItemVisible
-        configureButtonContent()
         configureMenu()
         updateTitle(state.snapshot)
 
@@ -61,32 +51,6 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 self?.updateTitle(values.0)
             }
             .store(in: &cancellables)
-    }
-
-    private func configureButtonContent() {
-        guard let button = statusItem.button else { return }
-
-        percentagesLabel.alignment = .center
-        updatedAtLabel.alignment = .center
-        percentagesLabel.setContentHuggingPriority(.required, for: .horizontal)
-        updatedAtLabel.setContentHuggingPriority(.required, for: .horizontal)
-        percentagesLabel.setContentCompressionResistancePriority(.required, for: .vertical)
-        updatedAtLabel.setContentCompressionResistancePriority(.required, for: .vertical)
-
-        textStack.orientation = .vertical
-        textStack.alignment = .centerX
-        textStack.distribution = .fill
-        textStack.spacing = 1
-        textStack.translatesAutoresizingMaskIntoConstraints = false
-        textStack.addArrangedSubview(percentagesLabel)
-        textStack.addArrangedSubview(updatedAtLabel)
-        textStack.isHidden = true
-
-        button.addSubview(textStack)
-        NSLayoutConstraint.activate([
-            textStack.centerXAnchor.constraint(equalTo: button.centerXAnchor),
-            textStack.centerYAnchor.constraint(equalTo: button.centerYAnchor)
-        ])
     }
 
     private func configureMenu() {
@@ -157,8 +121,8 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         }
 
         button.contentTintColor = nil
-        button.image = nil
-        button.imagePosition = .noImage
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleNone
         button.title = ""
         button.attributedTitle = NSAttributedString(string: "")
         let title = MenuBarPresentation.title(
@@ -180,16 +144,21 @@ final class MenuBarController: NSObject, NSMenuDelegate {
                 ?? "\(updatedLabel) \(updatedTime)",
             attributes: attributes
         )
-        percentagesLabel.alphaValue = state.usageStatus.needsAttention ? 0.5 : 1
-
-        percentagesLabel.attributedStringValue = title
-        updatedAtLabel.attributedStringValue = updatedTitle
-        textStack.isHidden = false
-        statusItem.length = ceil(max(title.size().width, updatedTitle.size().width) + 12)
+        let image = MenuBarPresentation.statusImage(
+            title: title, subtitle: updatedTitle,
+            dimsTitle: state.usageStatus.needsAttention
+        )
+        button.image = image
+        statusItem.length = image.size.width + 12
+        let percentages = MenuBarPresentation.title(
+            windows: windows, showsPercentages: true, showsProgress: false,
+            textSize: state.menuBarTextSize
+        ).string
+        button.setAccessibilityLabel("\(percentages), \(updatedTitle.string)")
     }
 
     private func showIcon(in button: NSButton) {
-        textStack.isHidden = true
+        button.setAccessibilityLabel(state.usageStatus.message ?? "CodexLimits")
         statusItem.length = NSStatusItem.squareLength
         if state.usageStatus.needsAttention {
             button.image = NSImage(systemSymbolName: "exclamationmark.circle.fill",
@@ -231,6 +200,35 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
 // Shared with the settings preview so its spacing matches the status item.
 enum MenuBarPresentation {
+    static func statusImage(
+        title: NSAttributedString,
+        subtitle: NSAttributedString,
+        dimsTitle: Bool
+    ) -> NSImage {
+        let titleSize = title.size()
+        let subtitleSize = subtitle.size()
+        let size = NSSize(width: ceil(max(titleSize.width, subtitleSize.width)),
+                          height: ceil(titleSize.height) + 1 + ceil(subtitleSize.height))
+        // Subviews with Auto Layout inside NSStatusBarButton can repeatedly invalidate
+        // AppKit's menu-bar replicant snapshots. Draw both lines as a single cached image.
+        // The drawing representation remains sharp at each display's backing scale.
+        return NSImage(size: size, flipped: false) { _ in
+            NSGraphicsContext.saveGraphicsState()
+            if dimsTitle {
+                NSGraphicsContext.current?.cgContext.setAlpha(0.5)
+                NSGraphicsContext.current?.cgContext.beginTransparencyLayer(auxiliaryInfo: nil)
+            }
+            title.draw(at: NSPoint(x: (size.width - titleSize.width) / 2,
+                                   y: ceil(subtitleSize.height) + 1))
+            if dimsTitle {
+                NSGraphicsContext.current?.cgContext.endTransparencyLayer()
+            }
+            NSGraphicsContext.restoreGraphicsState()
+            subtitle.draw(at: NSPoint(x: (size.width - subtitleSize.width) / 2, y: 0))
+            return true
+        }
+    }
+
     @MainActor
     static func resetCreditsSection(
         resetCredits: UsageResetCredits?,

@@ -177,6 +177,78 @@ struct PresentationChecks {
         check(title([short, weekly], false, false).length == 0, "Icon mode must have no title")
         check(title([], true, true).length == 0, "No data must have no fabricated usage")
         check(title([zero], true, false).string == "0%", "An exhausted limit must remain visible")
+
+        // Exercise the actual menu-bar image at both backing scales, including faded
+        // stale usage. Each line must survive compositing without affecting the other.
+        func rasterize(_ image: NSImage, scale: Int, appearance: NSAppearance) -> NSBitmapImageRep {
+            let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil,
+                pixelsWide: Int(image.size.width) * scale, pixelsHigh: Int(image.size.height) * scale,
+                bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+                colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+            NSGraphicsContext.current!.cgContext.scaleBy(x: CGFloat(scale), y: CGFloat(scale))
+            appearance.performAsCurrentDrawingAppearance {
+                image.draw(in: NSRect(origin: .zero, size: image.size))
+            }
+            NSGraphicsContext.restoreGraphicsState()
+            return bitmap
+        }
+        func alphaSum(_ bitmap: NSBitmapImageRep, rows: Range<Int>) -> Double {
+            rows.reduce(0) { total, y in
+                total + (0..<bitmap.pixelsWide).reduce(0) { $0 + bitmap.colorAt(x: $1, y: y)!.alphaComponent }
+            }
+        }
+        let menuRenderPath = ProcessInfo.processInfo.environment["CODEX_LIMITS_MENU_RENDER_DIR"]
+        if let menuRenderPath {
+            try FileManager.default.createDirectory(atPath: menuRenderPath, withIntermediateDirectories: true)
+        }
+        let subtitle = NSAttributedString(string: "Updated 12:34", attributes: [
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 7, weight: .regular),
+            .foregroundColor: NSColor.secondaryLabelColor
+        ])
+        for dark in [false, true] {
+            for textSize in MenuBarTextSize.allCases {
+                for (mode, percentages, progress) in [("text", true, false), ("meters", false, true), ("both", true, true)] {
+                    let text = MenuBarPresentation.title(windows: [short, weekly], showsPercentages: percentages,
+                                                         showsProgress: progress, textSize: textSize)
+                    let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
+                    let normal = MenuBarPresentation.statusImage(title: text, subtitle: subtitle,
+                                                                dimsTitle: false)
+                    let faded = MenuBarPresentation.statusImage(title: text, subtitle: subtitle,
+                                                               dimsTitle: true)
+                    check(normal.size.width >= max(text.size().width, subtitle.size().width)
+                          && normal.size.height >= text.size().height + subtitle.size().height + 1,
+                          "The menu image must fit both lines without clipping")
+                    for scale in [1, 2] {
+                        let normalBitmap = rasterize(normal, scale: scale, appearance: appearance)
+                        let fadedBitmap = rasterize(faded, scale: scale, appearance: appearance)
+                        let titleRows = 0..<(Int(ceil(text.size().height)) * scale)
+                        let subtitleRows = (normalBitmap.pixelsHigh - Int(ceil(subtitle.size().height)) * scale)..<normalBitmap.pixelsHigh
+                        let titleAlpha = alphaSum(normalBitmap, rows: titleRows)
+                        let subtitleAlpha = alphaSum(normalBitmap, rows: subtitleRows)
+                        check(titleAlpha > 0 && subtitleAlpha > 0, "Both menu lines must render at every backing scale")
+                        check(alphaSum(fadedBitmap, rows: titleRows) < titleAlpha * 0.6,
+                              "Stale menu usage must remain visibly faded, including progress meters")
+                        check(abs(alphaSum(fadedBitmap, rows: subtitleRows) - subtitleAlpha) < 1,
+                              "Fading stale usage must not fade the status line")
+                        if let menuRenderPath, scale == 2 {
+                            try normalBitmap.representation(using: .png, properties: [:])!.write(to:
+                                URL(fileURLWithPath: "\(menuRenderPath)/\(dark ? "dark" : "light")-\(textSize.rawValue)-\(mode).png"))
+                        }
+                    }
+                }
+            }
+        }
+        let adaptiveImage = MenuBarPresentation.statusImage(
+            title: NSAttributedString(string: "72%", attributes: [
+                .font: NSFont.systemFont(ofSize: 13), .foregroundColor: NSColor.labelColor
+            ]), subtitle: subtitle, dimsTitle: false)
+        let lightBitmap = rasterize(adaptiveImage, scale: 2, appearance: NSAppearance(named: .aqua)!)
+        let darkBitmap = rasterize(adaptiveImage, scale: 2, appearance: NSAppearance(named: .darkAqua)!)
+        check(lightBitmap.representation(using: .png, properties: [:])
+              != darkBitmap.representation(using: .png, properties: [:]),
+              "The same cached menu image must adapt to appearance changes without rebuilding it")
         check(ResetCountdown.text(resetAt: now, relativeTo: now) == String(localized: "Reset due"), "Reset boundary")
         check(ResetCountdown.text(resetAt: now.addingTimeInterval(-1), relativeTo: now) == String(localized: "Reset due"), "Past reset")
         check(!ResetCountdown.text(resetAt: now.addingTimeInterval(1), relativeTo: now).contains("-"), "Sub-minute duration must not go negative")
