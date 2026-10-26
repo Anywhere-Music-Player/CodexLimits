@@ -30,7 +30,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        if urls.contains(where: { $0.scheme == AppConfiguration.urlScheme }) {
+        let appURLs = urls.filter { $0.scheme == AppConfiguration.urlScheme }
+        if appURLs.contains(where: { $0.host == "about" }) {
+            AboutWindowController.shared.show()
+        } else if !appURLs.isEmpty {
             SettingsWindowController.shared.show()
         }
     }

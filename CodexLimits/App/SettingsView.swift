@@ -69,6 +69,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case themes
     case colors
     case account
+    case about
 
     var id: String { rawValue }
     var title: String {
@@ -78,6 +79,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .themes: String(localized: "Themes")
         case .colors: String(localized: "Usage colors")
         case .account: String(localized: "Account")
+        case .about: String(localized: "About")
         }
     }
     var symbol: String {
@@ -87,6 +89,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .themes: "square.grid.2x2"
         case .colors: "paintpalette"
         case .account: "person.crop.circle"
+        case .about: "info.circle"
         }
     }
 }
@@ -151,6 +154,8 @@ struct SettingsView: View {
             colorSettingsPanel
         case .account:
             accountPanel
+        case .about:
+            AboutView()
         }
     }
 

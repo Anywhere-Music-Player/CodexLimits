@@ -77,6 +77,11 @@ final class MenuBarController: NSObject, NSMenuDelegate {
             systemImage: "gearshape",
             action: #selector(openSettings)
         ))
+        menu.addItem(makeItem(
+            String(localized: "About CodexLimits"),
+            systemImage: "info.circle",
+            action: #selector(openAbout)
+        ))
         menu.addItem(.separator())
         menu.addItem(makeItem(
             String(localized: "menu.quit"),
@@ -187,6 +192,10 @@ final class MenuBarController: NSObject, NSMenuDelegate {
 
     @objc private func openSettings() {
         SettingsWindowController.shared.show()
+    }
+
+    @objc private func openAbout() {
+        AboutWindowController.shared.show()
     }
 
     @objc private func refreshNow() {

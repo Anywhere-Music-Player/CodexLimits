@@ -12,6 +12,8 @@ cat > "$bundle/Contents/Info.plist" <<'PLIST'
 <key>CFBundleIdentifier</key><string>com.buildsucceeded.codex-limits.presentation-checks</string>
 <key>CFBundleExecutable</key><string>checks</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
+<key>CFBundleShortVersionString</key><string>42.7.3</string>
+<key>CFBundleVersion</key><string>123</string>
 <key>LSUIElement</key><true/>
 </dict></plist>
 PLIST
@@ -20,6 +22,7 @@ xcrun swiftc -target "$(uname -m)-apple-macosx14.0" -module-cache-path "${TMPDIR
   CodexLimitsShared/UsageModels.swift \
   CodexLimitsShared/CodexWidgetContentView.swift \
   CodexLimits/App/AppState.swift \
+  CodexLimits/App/AboutView.swift \
   CodexLimits/App/LaunchAtLogin.swift \
   CodexLimits/App/MenuBarController.swift \
   CodexLimits/App/SettingsView.swift \

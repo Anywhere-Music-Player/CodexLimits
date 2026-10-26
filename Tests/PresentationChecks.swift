@@ -272,7 +272,40 @@ struct PresentationChecks {
               "Successful refresh must clear the warning")
         check(UsageStatus.signedOut.message != UsageStatus.failed.message,
               "Authentication and refresh failure must be distinguishable")
+        let about = AboutInformation()
+        check(about.version == "42.7.3" && about.build == "123",
+              "About must read version and build from the running bundle, not a hard-coded release")
+        check(about.identifier == Bundle.main.bundleIdentifier
+              && about.supportSummary.contains("42.7.3") && about.supportSummary.contains("123")
+              && about.supportSummary.contains(about.systemVersion),
+              "Copied app information must identify the actual app build and system")
         print("Passed \(checks) presentation checks")
+
+        if let output = ProcessInfo.processInfo.environment["CODEX_LIMITS_ABOUT_RENDER_DIR"] {
+            try FileManager.default.createDirectory(atPath: output, withIntermediateDirectories: true)
+            for dark in [false, true] {
+                NSApp.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+                for localeID in ["en", "uk", "de"] {
+                    let root = AboutView()
+                        .padding(24)
+                        .frame(width: 520)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .environment(\.locale, Locale(identifier: localeID))
+                        .environment(\.colorScheme, dark ? .dark : .light)
+                    let controller = NSHostingController(rootView: root)
+                    let window = NSWindow(contentViewController: controller)
+                    window.setContentSize(NSSize(width: 520, height: 560))
+                    window.contentView?.layoutSubtreeIfNeeded()
+                    RunLoop.current.run(until: Date().addingTimeInterval(0.2))
+                    let view = controller.view
+                    let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+                    view.cacheDisplay(in: view.bounds, to: rep)
+                    try rep.representation(using: .png, properties: [:])!.write(to:
+                        URL(fileURLWithPath: "\(output)/about-\(localeID)-\(dark ? "dark" : "light").png"))
+                    window.close()
+                }
+            }
+        }
 
         guard let output = ProcessInfo.processInfo.environment["CODEX_LIMITS_RENDER_DIR"] else { return }
         try FileManager.default.createDirectory(atPath: output, withIntermediateDirectories: true)
@@ -355,7 +388,7 @@ struct PresentationChecks {
                     .write(to: URL(fileURLWithPath: "\(output)/resets-\(localeID)-\(dark ? "dark" : "light").png"))
             }
         }
-        for section in [SettingsSection.themes, .menuBar, .general, .colors, .account] {
+        for section in [SettingsSection.themes, .menuBar, .general, .colors, .account, .about] {
             let root = SettingsView(state: state, selectedSection: section)
             let controller = NSHostingController(rootView: root)
             let window = NSWindow(contentViewController: controller)
