@@ -27,7 +27,7 @@
 | Reset tracking | Reset dates and localized countdowns, without a redundant remaining label. |
 | Available resets | Available usage limit resets with compact local expiration dates at the top of the menu and full dates in General settings. |
 | Personalization | Usage colors and sidebar settings with theme previews in both sizes and appearances. |
-| About | App version and build, developer and license information, project links, and copyable system details for bug reports. |
+| About in Settings | App version and build, developer and license information, project links, and copyable system details for bug reports. |
 | Refresh | Choose an interval of 1, 2, 3, or 5 minutes. |
 | Sign-in | Authenticate through an embedded ChatGPT web view. |
 

@@ -115,34 +115,3 @@ struct AboutView: View {
         .frame(maxWidth: 620, alignment: .leading)
     }
 }
-
-@MainActor
-final class AboutWindowController: NSObject, NSWindowDelegate {
-    static let shared = AboutWindowController()
-    private var window: NSWindow?
-
-    func show() {
-        if window == nil {
-            let controller = NSHostingController(rootView:
-                ScrollView { AboutView().padding(24).frame(maxWidth: .infinity, alignment: .leading) }
-            )
-            let window = NSWindow(contentViewController: controller)
-            window.title = String(localized: "About CodexLimits")
-            window.identifier = NSUserInterfaceItemIdentifier("about")
-            window.styleMask = [.titled, .closable, .resizable]
-            window.setContentSize(NSSize(width: 520, height: 560))
-            window.contentMinSize = NSSize(width: 440, height: 480)
-            window.isReleasedWhenClosed = false
-            window.delegate = self
-            window.center()
-            self.window = window
-        }
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-    }
-
-    func windowWillClose(_ notification: Notification) {
-        // A closed About panel has no retained view hierarchy or background work.
-        window = nil
-    }
-}
